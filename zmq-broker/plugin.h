@@ -1,3 +1,5 @@
+#ifndef PLUGIN_H
+#define PLUGIN_H
 typedef struct plugin_struct *plugin_t;
 
 typedef struct {
@@ -85,6 +87,8 @@ int plugin_kvs_watch (plugin_ctx_t *p, const char *key,
                       kvs_watch_f *set, void *arg);
 
 bool plugin_treeroot (plugin_ctx_t *p);
+
+#endif /* !PLUGIN_H */
 
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab
