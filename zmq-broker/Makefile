@@ -4,7 +4,7 @@ LIBDIR =          $(TOP)/lib
 EXTRA_CFLAGS +=   -I$(TOP)/include -I$(TOP)/util
 EXTRA_LDFLAGS +=  -L$(TOP)/lib $(TOP)/util/libutil.a
 
-SUBDIRS :=
+SUBDIRS :=        wreck
 
 ifeq ($(shell hostname),jimbo.chaos)
 MPIMOD = mvapich2-gnu-shmem
@@ -18,13 +18,14 @@ LDFLAGS = -Wl,-rpath,$(LIBDIR)
 
 export CFLAGS LDFLAGS
 
-LIBUTIL =   util/libutil.a
+LIBUTIL = util/libutil.a
 LDADD_CLI = $(EXTRA_LDFLAGS) -ljson -lzmq -lczmq -lcrypto -luuid $(LIBUTIL)
 LDADD_SRV = -pthread $(LDADD_CLI)
 
 PLUGIN_OBJS = apisrv.o syncsrv.o kvssrv.o barriersrv.o livesrv.o \
-	logsrv.o echosrv.o
-CMBD_OBJS = cmbd.o route.o plugin.o $(PLUGIN_OBJS)
+	logsrv.o echosrv.o wreck/jobsrv.o wreck/wrexecsrv.o
+CMBD_OBJS = cmbd.o route.o plugin.o kvns.o $(PLUGIN_OBJS)
+
 CMBUTIL_OBJS = cmbutil.o
 TBASE64_OBJS = tbase64.o
 LIBPMI_OBJS = pmi.o
@@ -33,9 +34,9 @@ LIBCMB_OBJS = apicli.o
 LIBPMI = $(LIBDIR)/libpmi.so.0
 LIBCMB = $(LIBDIR)/libcmb.so.0
 
-BUILD = $(LIBCMB) $(LIBPMI) cmbd cmbutil tbase64 kvstest mpi_hello
+BUILD = $(LIBCMB) subdirs $(LIBPMI) cmbd cmbutil tbase64 kvstest mpi_hello
 
-all: subdirs $(BUILD)
+all: $(BUILD)
 
 subdirs: $(LIBUTIL) $(LIBCMB)
 	@for f in $(SUBDIRS); do make -C $$f; done
@@ -70,7 +71,6 @@ mpi_hello: mpi_hello.c
 	(source /etc/profile.d/modules.sh;\
 		module load $(MPIMOD);\
 		mpicc $(LDFLAGS) -o $@ $<)
-
 
 clean:
 	rm -f *.o $(BUILD)
