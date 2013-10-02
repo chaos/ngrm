@@ -221,7 +221,6 @@ static zmsg_t *rexec_session_handler_msg_create (struct rexec_session *s)
 {
     json_object *o = rexec_session_json (s);
     zmsg_t *zmsg = cmb_msg_encode ("rexec.run", o);
-    msg ("json: %s", json_object_to_json_string (o));
     json_object_put (o);
     return (zmsg);
 }
@@ -337,6 +336,7 @@ static int rexec_session_kill (struct rexec_session *s, int sig)
     int rc;
     json_object *o = json_object_new_int (sig);
     zmsg_t * zmsg = cmb_msg_encode ("rexec.kill", o);
+    zmsg_dump (zmsg);
 
     rc = zmsg_send (&zmsg, s->zs_req);
     if (rc < 0)

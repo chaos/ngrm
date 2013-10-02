@@ -506,19 +506,26 @@ int cmb_cb (zloop_t *zl, zmq_pollitem_t *zp, struct prog_ctx *ctx)
 {
     char *tag;
     json_object *o;
-    msg("cmb_cb");
 
     zmsg_t *zmsg = zmsg_recv (zp->socket);
     if (!zmsg) {
         msg ("rexec_cb: no msg to recv!");
         return (0);
     }
+    free (zmsg_popstr (zmsg)); /* Destroy dealer id */
 
-    cmb_msg_decode (zmsg, &tag, &o);
+    if (cmb_msg_decode (zmsg, &tag, &o) < 0) {
+        err ("cmb_msg_decode");
+        return (0);
+    }
 
     /* Got an incoming message from cmbd */
     if (strcmp (tag, "rexec.kill") == 0) {
-
+        int sig = json_object_get_int (o);
+        if (sig == 0)
+            sig = 9;
+        msg ("Killing jobid %lu with signal %d", ctx->id, sig);
+        prog_ctx_signal (ctx, sig);
     }
     zmsg_destroy (&zmsg);
     json_object_put (o);
