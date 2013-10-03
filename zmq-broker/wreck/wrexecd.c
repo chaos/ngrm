@@ -38,6 +38,11 @@ void *lsd_nomem_error (const char *file, int line, char *msg)
     return (NULL);
 }
 
+int globalid (struct prog_ctx *ctx, int localid)
+{
+    return ((ctx->nodeid * ctx->nprocs) + localid);
+}
+
 int signalfd_setup (struct prog_ctx *ctx)
 {
     sigset_t mask;
@@ -332,7 +337,7 @@ int rexec_taskinfo_put (struct prog_ctx *ctx, int localid)
 {
     char *key;
     json_object *o;
-    int global_taskid = ctx->nodeid + localid;
+    int global_taskid = globalid (ctx, localid);
 
     o = json_task_info_object_create (ctx, ctx->argv [0], ctx->pids [localid]);
     if (asprintf (&key, "lwj.%lu.%d.procdesc", ctx->id, global_taskid) < 0) {
@@ -348,6 +353,7 @@ int rexec_taskinfo_put (struct prog_ctx *ctx, int localid)
     json_object_put (o);
     return (0);
 }
+
 int send_startup_message (struct prog_ctx *ctx)
 {
     int i;
@@ -372,7 +378,7 @@ int send_startup_message (struct prog_ctx *ctx)
 int send_exit_message (struct prog_ctx *ctx, int taskid, int status)
 {
     char *key;
-    int global_taskid = taskid + cmb_rank (ctx->cmb);
+    int global_taskid = globalid (ctx, taskid);
     json_object *o = json_object_new_int (status);
 
     if (asprintf (&key, "lwj.%lu.%d.exit_status", ctx->id, global_taskid) < 0)
