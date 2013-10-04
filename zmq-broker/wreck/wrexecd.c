@@ -18,6 +18,7 @@
 struct prog_ctx {
     cmb_t cmb;
     int64_t id;             /* id of this execution */
+    int nnodes;
     int nodeid;
     int nprocs;             /* number of copies of command to execute */
 
@@ -105,6 +106,7 @@ void prog_ctx_destroy (struct prog_ctx *ctx)
 struct prog_ctx * prog_ctx_create (void)
 {
     struct prog_ctx *ctx = malloc (sizeof (*ctx));
+    memset (ctx, 0, sizeof (*ctx));
     zsys_handler_set (NULL); /* Disable czmq SIGINT/SIGTERM handlers */
     if (!ctx)
         err_exit ("malloc");
@@ -115,7 +117,6 @@ struct prog_ctx * prog_ctx_create (void)
 
     ctx->id = -1;
     ctx->nodeid = -1;
-    ctx->exited = 0;
 
     return (ctx);
 }
@@ -228,6 +229,7 @@ int prog_ctx_init_from_cmb (struct prog_ctx *ctx)
         err_exit ("cmb_init");
 
     ctx->nodeid = cmb_rank (ctx->cmb);
+    ctx->nnodes = cmb_size (ctx->cmb);
     msg ("initializing from CMB: rank=%d", ctx->nodeid);
     if (prog_ctx_load_lwj_info (ctx, ctx->id) < 0)
         err_exit ("Failed to load lwj info");
@@ -403,7 +405,12 @@ int exec_command (struct prog_ctx *ctx, int i)
         err_exit ("fork: %s", strerror (errno));
     if (cpid == 0) {
         msg ("in child going to exec %s", ctx->argv [0]);
-        child_io_devnull (ctx);
+
+        setenvf ("MPIRUN_RANK",       1, "%d", globalid (ctx, i));
+        setenvf ("CMB_LWJ_TASK_ID",       1, "%d", globalid (ctx, i));
+        setenvf ("CMB_LWJ_LOCAL_TASK_ID", 1, "%d", i);
+
+        //child_io_devnull (ctx);
 
         /* give each task its own process group so we can use killpg(2) */
         setpgrp();
@@ -420,9 +427,55 @@ int exec_command (struct prog_ctx *ctx, int i)
     return (0);
 }
 
+char *gtid_list_create (struct prog_ctx *ctx, char *buf, size_t len)
+{
+    char *str = NULL;
+    int i, n = 0;
+    int truncated = 0;
+
+    memset (buf, 0, len);
+
+    for (i = 0; i < ctx->nprocs; i++) {
+        int count;
+
+        if (!truncated)  {
+            count = snprintf (buf + n, len - n, "%u,", globalid (ctx, i));
+
+            if ((count >= (len - n)) || (count < 0))
+                truncated = 1;
+            else
+                n += count;
+        }
+        else
+            n += strlen (str) + 1;
+    }
+
+    if (truncated)
+        buf [len - 1] = '\0';
+    else {
+        /*
+         * Delete final separator
+         */
+        buf[strlen(buf) - 1] = '\0';
+    }
+
+    return (buf);
+}
+
+
 int exec_commands (struct prog_ctx *ctx)
 {
+    char buf [4096];
     int i;
+
+    setenvf ("CMB_LWJ_ID",     1, "%d", ctx->id);
+    setenvf ("CMB_LWJ_NNODES", 1, "%d", ctx->nnodes);
+    setenvf ("CMB_NODE_ID",    1, "%d", ctx->nodeid);
+    setenvf ("CMB_LWJ_TASKS",  1, "%d", ctx->nprocs * ctx->nnodes);
+    setenvf ("MPIRUN_NPROCS",  1, "%d", ctx->nprocs * ctx->nnodes);
+    gtid_list_create (ctx, buf, sizeof (buf));
+    setenvf ("CMB_LWJ_GTIDS",  1, "%s", buf);
+
     for (i = 0; i < ctx->nprocs; i++)
         exec_command (ctx, i);
 
