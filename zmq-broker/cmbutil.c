@@ -19,6 +19,7 @@
 #include "util.h"
 
 static int _parse_logstr (char *s, int *lp, char **fp);
+static void _print_object (const char *path, json_object *o);
 static void list_kvs (const char *name, json_object *o);
 
 #define OPTIONS "p:s:b:B:k:SK:Ct:P:d:n:x:e:TL:W:D:r:R:qz:Zyl:j:Y:"
@@ -255,13 +256,7 @@ int main (int argc, char *argv[])
 
                 if (cmb_kvs_get (c, optarg, &o, KVS_GET_VAL) < 0)
                     err_exit ("cmb_kvs_get");
-                if (json_object_get_type (o) == json_type_string)
-                    printf ("%s = \"%s\"\n", optarg,
-                            json_object_get_string (o));
-                else
-                    printf ("%s = %s\n", optarg,
-                            json_object_to_json_string_ext (o,
-                                                    JSON_C_TO_STRING_PLAIN));
+                _print_object (optarg, o);
                 json_object_put (o);
                 break;
             }
