@@ -471,7 +471,7 @@ int exec_commands (struct prog_ctx *ctx)
     setenvf ("CMB_LWJ_ID",     1, "%d", ctx->id);
     setenvf ("CMB_LWJ_NNODES", 1, "%d", ctx->nnodes);
     setenvf ("CMB_NODE_ID",    1, "%d", ctx->nodeid);
-    setenvf ("CMB_LWJ_TASKS",  1, "%d", ctx->nprocs * ctx->nnodes);
+    setenvf ("CMB_LWJ_NTASKS", 1, "%d", ctx->nprocs * ctx->nnodes);
     setenvf ("MPIRUN_NPROCS",  1, "%d", ctx->nprocs * ctx->nnodes);
     gtid_list_create (ctx, buf, sizeof (buf));
     setenvf ("CMB_LWJ_GTIDS",  1, "%s", buf);
