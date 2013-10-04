@@ -509,11 +509,25 @@ static int _parse_logstr (char *s, int *lp, char **fp)
     return 0;
 }
 
+static void _print_object (const char *path, json_object *co)
+{
+    if (json_object_get_type (co) == json_type_string)
+        printf ("%s = \"%s\"\n", path, json_object_get_string (co));
+    else
+        printf ("%s = %s\n", path, json_object_to_json_string_ext (co,
+                    JSON_C_TO_STRING_PLAIN));
+}
+
 static void list_kvs (const char *name, json_object *o)
 {
     json_object *co;
     json_object_iter iter;
     char *path;
+
+    if (!json_object_is_type (o, json_type_object)) {
+        _print_object (name, o);
+        return;
+    }
 
     json_object_object_foreachC (o, iter) {
         if (!strcmp (name, "."))
@@ -523,11 +537,7 @@ static void list_kvs (const char *name, json_object *o)
         if ((co = json_object_object_get (iter.val, "DIRVAL"))) {
             list_kvs (path, co); 
         } else if ((co = json_object_object_get (iter.val, "FILEVAL"))) {
-            if (json_object_get_type (co) == json_type_string)
-                printf ("%s = \"%s\"\n", path, json_object_get_string (co));
-            else
-                printf ("%s = %s\n", path, json_object_to_json_string_ext (co,
-                                                JSON_C_TO_STRING_PLAIN));
+            _print_object (path, co);
         }
         free (path);
     }
