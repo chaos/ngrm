@@ -95,6 +95,7 @@ int main (int argc, char *argv[])
     int padding = 0;
     int pingdelay_ms = 1000;
     static char socket_path[PATH_MAX + 1];
+    char *val;
     bool Lopt = false;
     char *Lopt_facility;
     int Lopt_level;
@@ -104,7 +105,16 @@ int main (int argc, char *argv[])
 
     nprocs = env_getint ("SLURM_NPROCS", 1);
 
-    snprintf (socket_path, sizeof (socket_path), CMB_API_PATH_TMPL, getuid ());
+    if ((val = getenv ("CMB_API_PATH"))) {
+        if (strlen (val) > PATH_MAX)
+            err_exit ("What a long CMB_API_PATH you have!");
+        strcpy (socket_path, val);
+    }
+    else {
+        snprintf (socket_path, sizeof (socket_path),
+                  CMB_API_PATH_TMPL, getuid ());
+    }
+
     while ((ch = getopt_long (argc, argv, OPTIONS, longopts, NULL)) != -1) {
         switch (ch) {
             case 'P': /* --ping-padding N */
