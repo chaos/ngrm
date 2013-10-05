@@ -187,9 +187,7 @@ static void handle_recv (plugin_ctx_t *p, zmsg_t **zmsg, zmsg_type_t type)
     char *tag;
 
     if (cmb_msg_decode (*zmsg, &tag, &o) >= 0) {
-        fprintf (stderr, "tag=%s json=%s\n", tag, json_object_to_json_string (o));
         if (strcmp (tag, "job.next-id") == 0) {
-            fprintf (stderr, "%s\n", tag);
             if (plugin_treeroot (p)) {
                 unsigned long id = lwj_next_id (p);
                 json_object *ox = json_id (id);
