@@ -8,11 +8,11 @@
 #include <sys/signalfd.h>
 #include <json/json.h>
 #include <czmq.h>
+#include <sys/syslog.h>
 
 #include "util/optparse.h"
 #include "util/util.h"
 #include "util/zmsg.h"
-#include "util/log.h"
 #include "cmb.h"
 
 struct prog_ctx {
@@ -39,6 +39,37 @@ void *lsd_nomem_error (const char *file, int line, char *msg)
     return (NULL);
 }
 
+static void log_fatal (struct prog_ctx *ctx, int code, char *format, ...)
+{
+    cmb_t c;
+    va_list ap;
+    va_start (ap, format);
+    if ((ctx != NULL) && ((c = ctx->cmb) != NULL))
+        cmb_vlog (c, LOG_EMERG, format, ap);
+    else
+        vfprintf (stderr, format, ap);
+    va_end (ap);
+    exit (code);
+}
+
+static void log_err (struct prog_ctx *ctx, const char *fmt, ...)
+{
+    cmb_t c = ctx->cmb;
+    va_list ap;
+    va_start (ap, fmt);
+    cmb_vlog (c, LOG_ERR, fmt, ap);
+    va_end (ap);
+}
+
+static void log_msg (struct prog_ctx *ctx, const char *fmt, ...)
+{
+    cmb_t c = ctx->cmb;
+    va_list ap;
+    va_start (ap, fmt);
+    cmb_vlog (c, LOG_INFO, fmt, ap);
+    va_end (ap);
+}
+
 int globalid (struct prog_ctx *ctx, int localid)
 {
     return ((ctx->nodeid * ctx->nprocs) + localid);
@@ -54,11 +85,11 @@ int signalfd_setup (struct prog_ctx *ctx)
     sigaddset (&mask, SIGINT);
 
     if (sigprocmask (SIG_BLOCK, &mask, NULL) < 0)
-        err ("Failed to block signals in parent");
+        log_err (ctx, "Failed to block signals in parent");
 
     ctx->signalfd = signalfd (-1, &mask, SFD_NONBLOCK | SFD_CLOEXEC);
     if (ctx->signalfd < 0)
-        err_exit ("signalfd");
+        log_fatal (ctx, 1, "signalfd");
     return (0);
 }
 
@@ -70,7 +101,7 @@ static char * ctime_iso8601_now (char *buf, size_t sz)
     memset (buf, 0, sz);
 
     if (!localtime_r (&now, &tm))
-        err_exit ("localtime");
+        return (NULL);
     strftime (buf, sz, "%FT%T", &tm);
 
     return (buf);
@@ -109,11 +140,11 @@ struct prog_ctx * prog_ctx_create (void)
     memset (ctx, 0, sizeof (*ctx));
     zsys_handler_set (NULL); /* Disable czmq SIGINT/SIGTERM handlers */
     if (!ctx)
-        err_exit ("malloc");
+        log_fatal (ctx, 1, "malloc");
     ctx->zctx = zctx_new ();
     ctx->zl = zloop_new ();
     if (!ctx->zl)
-        err_exit ("zloop_new");
+        log_fatal (ctx, 1, "zloop_new");
 
     ctx->id = -1;
     ctx->nodeid = -1;
@@ -137,18 +168,19 @@ static int prog_ctx_zmq_socket_setup (struct prog_ctx *ctx)
     return (0);
 }
 
-int json_array_to_argv (json_object *o, char ***argvp, int *argcp)
+int json_array_to_argv (struct prog_ctx *ctx,
+    json_object *o, char ***argvp, int *argcp)
 {
     int i;
     if (json_object_get_type (o) != json_type_array) {
-        err ("json_array_to_argv: not an array");
+        log_err (ctx, "json_array_to_argv: not an array");
         errno = EINVAL;
         return (-1);
     }
 
     *argcp = json_object_array_length (o);
     if (*argcp <= 0) {
-        err ("json_array_to_argv: array length = %d", *argcp);
+        log_err (ctx, "json_array_to_argv: array length = %d", *argcp);
         return (-1);
     }
 
@@ -157,7 +189,7 @@ int json_array_to_argv (json_object *o, char ***argvp, int *argcp)
     for (i = 0; i < *argcp; i++) {
         json_object *ox = json_object_array_get_idx (o, i);
         if (json_object_get_type (ox) != json_type_string) {
-            err ("malformed cmdline");
+            log_err (ctx, "malformed cmdline");
             free (*argvp);
             return (-1);
         }
@@ -182,22 +214,22 @@ int prog_ctx_load_lwj_info (struct prog_ctx *ctx, int64_t id)
     json_object *v;
 
     if (asprintf (&key, "lwj.%lu", id) < 0)
-        err_exit ("asprintf");
+        log_fatal (ctx, 1, "asprintf");
 
     if (cmb_kvs_get (ctx->cmb, key, &dir, KVS_GET_DIR) < 0)
-        err_exit ("cmb_kvs_get (%s)", key);
+        log_fatal (ctx, 1, "cmb_kvs_get (%s)", key);
 
     if (!(v = kvs_dir_get_file (dir, "cmdline")))
-        err_exit ("object_get: cmdline");
+        log_fatal (ctx, 1, "object_get: cmdline");
 
-    msg ("got cmdline object : '%s'", json_object_to_json_string (v));
+    log_msg (ctx, "got cmdline object : '%s'", json_object_to_json_string (v));
 
-    if (json_array_to_argv (v, &ctx->argv, &ctx->argc) < 0)
-        err_exit ("Failed to get cmdline from kvs");
+    if (json_array_to_argv (ctx, v, &ctx->argv, &ctx->argc) < 0)
+        log_fatal (ctx, 1, "Failed to get cmdline from kvs");
 
     if ((v = kvs_dir_get_file (dir, "nprocs"))) {
         if ((ctx->nprocs = json_object_get_int (v)) <= 0)
-            err_exit ("Failed to get nprocs from kvs: %d", ctx->nprocs);
+            log_fatal (ctx, 1, "Failed to get nprocs from kvs: %d", ctx->nprocs);
     }
     else
         ctx->nprocs = 1;
@@ -226,13 +258,13 @@ int prog_ctx_init_from_cmb (struct prog_ctx *ctx)
      * Connect to CMB over api socket
      */
     if (!(ctx->cmb = cmb_init ()))
-        err_exit ("cmb_init");
+        log_fatal (ctx, 1, "cmb_init");
 
     ctx->nodeid = cmb_rank (ctx->cmb);
     ctx->nnodes = cmb_size (ctx->cmb);
-    msg ("initializing from CMB: rank=%d", ctx->nodeid);
+    log_msg (ctx, "initializing from CMB: rank=%d", ctx->nodeid);
     if (prog_ctx_load_lwj_info (ctx, ctx->id) < 0)
-        err_exit ("Failed to load lwj info");
+        log_fatal (ctx, 1, "Failed to load lwj info");
 
 
     return (0);
@@ -256,7 +288,7 @@ void child_io_devnull (struct prog_ctx *ctx)
     if (  (dup2 (devnull, STDIN_FILENO) < 0)
        || (dup2 (devnull, STDOUT_FILENO) < 0)
        || (dup2 (devnull, STDERR_FILENO) < 0))
-            err_exit ("dup2: %s", strerror (errno));
+            log_fatal (ctx, 1, "dup2: %s", strerror (errno));
 
     closeall (3);
 }
@@ -271,7 +303,7 @@ int update_job_state (struct prog_ctx *ctx, const char *state)
 
     assert (cmb_rank (ctx->cmb) == 0);
 
-    msg ("updating job state to %s", state);
+    log_msg (ctx, "updating job state to %s", state);
 
     if (asprintf (&key, "lwj.%lu.state", ctx->id) < 0)
         return (-1);
@@ -308,15 +340,15 @@ int rexec_state_change (struct prog_ctx *ctx, const char *state)
 
     /* Wait for all cmb to finish */
     if (cmb_barrier (ctx->cmb, name, cmb_size (ctx->cmb)) < 0)
-        err_exit ("cmb_barrier");
+        log_fatal (ctx, 1, "cmb_barrier");
 
     /* Commit any new namespace */
     if (cmb_kvs_commit (ctx->cmb, name) < 0)
-        err_exit ("state_change: cmb_kvs_commit");
+        log_fatal (ctx, 1, "state_change: cmb_kvs_commit");
 
     /* Rank 0 updates job state */
     if ((cmb_rank (ctx->cmb) == 0) && update_job_state (ctx, state) < 0)
-        err_exit ("update_job_state");
+        log_fatal (ctx, 1, "update_job_state");
 
     return (0);
 }
@@ -343,12 +375,12 @@ int rexec_taskinfo_put (struct prog_ctx *ctx, int localid)
 
     o = json_task_info_object_create (ctx, ctx->argv [0], ctx->pids [localid]);
     if (asprintf (&key, "lwj.%lu.%d.procdesc", ctx->id, global_taskid) < 0) {
-        err ("asprintf failure");
+        log_err (ctx, "asprintf failure");
         return (-1);
     }
-    msg ("cmb_kvs_put: %s = %s", key, json_object_to_json_string (o));
+    log_msg (ctx, "cmb_kvs_put: %s = %s", key, json_object_to_json_string (o));
     if (cmb_kvs_put (ctx->cmb, key, o) < 0) {
-        err ("kvs_put failure");
+        log_err (ctx, "kvs_put failure");
         return (-1);
     }
 
@@ -365,12 +397,12 @@ int send_startup_message (struct prog_ctx *ctx)
     }
 
     if (cmb_kvs_flush (ctx->cmb) < 0) {
-        err ("cmb_kvs_flush");
+        log_err (ctx, "cmb_kvs_flush");
         return (-1);
     }
 
     if (rexec_state_change (ctx, "running") < 0) {
-        err ("rexec_state_change");
+        log_err (ctx, "rexec_state_change");
         return (-1);
     }
 
@@ -402,26 +434,24 @@ int exec_command (struct prog_ctx *ctx, int i)
     pid_t cpid = fork ();
 
     if (cpid < 0)
-        err_exit ("fork: %s", strerror (errno));
+        log_fatal (ctx, 1, "fork: %s", strerror (errno));
     if (cpid == 0) {
-        msg ("in child going to exec %s", ctx->argv [0]);
+        log_msg (ctx, "in child going to exec %s", ctx->argv [0]);
 
         setenvf ("MPIRUN_RANK",       1, "%d", globalid (ctx, i));
         setenvf ("CMB_LWJ_TASK_ID",       1, "%d", globalid (ctx, i));
         setenvf ("CMB_LWJ_LOCAL_TASK_ID", 1, "%d", i);
 
-        //child_io_devnull (ctx);
-
         /* give each task its own process group so we can use killpg(2) */
         setpgrp();
         if (execvp (ctx->argv [0], ctx->argv) < 0)
-            err_exit ("execvp: %s", strerror (errno));
+            log_fatal (ctx, 1, "execvp: %s", strerror (errno));
     }
 
     /*
      *  Parent: Close child fds
      */
-    msg ("in parent: child pid[%d] = %d", i, cpid);
+    log_msg (ctx, "in parent: child pid[%d] = %d", i, cpid);
     ctx->pids [i] = cpid;
 
     return (0);
@@ -505,15 +535,15 @@ int reap_child (struct prog_ctx *ctx)
         return (0);
 
     if (wpid < (pid_t) 0) {
-        err ("waitpid ()");
+        log_err (ctx, "waitpid ()");
         return (0);
     }
 
     id = pid_to_taskid (ctx, wpid);
-    msg ("task%d: pid %d (%s) exited with status 0x%04x",
+    log_msg (ctx, "task%d: pid %d (%s) exited with status 0x%04x",
             id, wpid, ctx->argv [0], status);
     if (send_exit_message (ctx, id, status) < 0)
-        msg ("Sending exit message failed!");
+        log_msg (ctx, "Sending exit message failed!");
     return (1);
 }
 
@@ -537,11 +567,11 @@ int signal_cb (zloop_t *zl, zmq_pollitem_t *zp, struct prog_ctx *ctx)
 
     n = read (zp->fd, &si, sizeof (si));
     if (n < 0) {
-        err ("read");
+        log_err (ctx, "read");
         return (0);
     }
     else if (n != sizeof (si)) {
-        err ("partial read?");
+        log_err (ctx, "partial read?");
         return (0);
     }
 
@@ -568,13 +598,13 @@ int cmb_cb (zloop_t *zl, zmq_pollitem_t *zp, struct prog_ctx *ctx)
 
     zmsg_t *zmsg = zmsg_recv (zp->socket);
     if (!zmsg) {
-        msg ("rexec_cb: no msg to recv!");
+        log_msg (ctx, "rexec_cb: no msg to recv!");
         return (0);
     }
     free (zmsg_popstr (zmsg)); /* Destroy dealer id */
 
     if (cmb_msg_decode (zmsg, &tag, &o) < 0) {
-        err ("cmb_msg_decode");
+        log_err (ctx, "cmb_msg_decode");
         return (0);
     }
 
@@ -583,7 +613,7 @@ int cmb_cb (zloop_t *zl, zmq_pollitem_t *zp, struct prog_ctx *ctx)
         int sig = json_object_get_int (o);
         if (sig == 0)
             sig = 9;
-        msg ("Killing jobid %lu with signal %d", ctx->id, sig);
+        log_msg (ctx, "Killing jobid %lu with signal %d", ctx->id, sig);
         prog_ctx_signal (ctx, sig);
     }
     zmsg_destroy (&zmsg);
@@ -616,16 +646,16 @@ static void daemonize ()
 {
     switch (fork ()) {
         case  0 : break;        /* child */
-        case -1 : err_exit ("fork");
+        case -1 : exit (2);
         default : _exit(0);     /* exit parent */
     }
 
     if (setsid () < 0)
-        err_exit ("setsid");
+        exit (3);
 
     switch (fork ()) {
         case  0 : break;        /* child */
-        case -1 : err_exit ("fork");
+        case -1 : exit (4);
         default : _exit(0);     /* exit parent */
     }
 }
@@ -641,7 +671,7 @@ int optparse_get_int (optparse_t p, char *name)
 
     l = strtol (s, &end, 10);
     if ((end == s) || (*end != '\0') || (l < 0) || (l > INT_MAX))
-        err_exit ("--%s=%s invalid", name, s);
+        log_fatal (NULL, 1, "--%s=%s invalid", name, s);
     return ((int) l);
 }
 
@@ -651,14 +681,14 @@ int prog_ctx_get_id (struct prog_ctx *ctx, optparse_t p)
     char *end;
 
     if (!optparse_getopt (p, "lwj-id", &id))
-        err_exit ("Required argument --lwj-id missing");
+        log_fatal (ctx, 1, "Required argument --lwj-id missing");
 
     errno = 0;
     ctx->id = strtol (id, &end, 10);
     if (  (*end != '\0')
        || (ctx->id == 0 && errno == EINVAL)
        || (ctx->id == ULONG_MAX && errno == ERANGE))
-           err_exit ("--lwj-id=%s invalid", id);
+           log_fatal (ctx, 1, "--lwj-id=%s invalid", id);
 
     return (0);
 }
@@ -666,7 +696,7 @@ int prog_ctx_get_id (struct prog_ctx *ctx, optparse_t p)
 int main (int ac, char **av)
 {
     int parent_fd = -1;
-    struct prog_ctx *ctx;
+    struct prog_ctx *ctx = NULL;
     optparse_t p;
     struct optparse_option opts [] = {
         { .name =    "lwj-id",
@@ -684,13 +714,11 @@ int main (int ac, char **av)
         OPTPARSE_TABLE_END,
     };
 
-    log_init ("rexecd");
-
     p = optparse_create (av[0]);
     if (optparse_add_option_table (p, opts) != OPTPARSE_SUCCESS)
-        err_exit ("optparse_add_option_table");
+        log_fatal (ctx, 1, "optparse_add_option_table");
     if (optparse_parse_args (p, ac, av) < 0)
-        err_exit ("parse args");
+        log_fatal (ctx, 1, "parse args");
 
     daemonize ();
 
@@ -698,13 +726,14 @@ int main (int ac, char **av)
     signalfd_setup (ctx);
 
     if (prog_ctx_get_id (ctx, p) < 0)
-        err_exit ("Failed to get lwj id from cmdline");
+        log_fatal (ctx, 1, "Failed to get lwj id from cmdline");
 
     prog_ctx_init_from_cmb (ctx);
+    cmb_log_set_facility (ctx->cmb, "wrexecd");
     prog_ctx_zmq_socket_setup (ctx);
 
     if ((cmb_rank (ctx->cmb) == 0) && update_job_state (ctx, "starting") < 0)
-        err_exit ("update_job_state");
+        log_fatal (ctx, 1, "update_job_state");
 
     if ((parent_fd = optparse_get_int (p, "parent-fd")) >= 0)
         prog_ctx_signal_parent (parent_fd);
@@ -712,9 +741,9 @@ int main (int ac, char **av)
     exec_commands (ctx);
 
     while (zloop_start (ctx->zl) == 0)
-        {msg ("EINTR?");}
+        {log_msg (ctx, "EINTR?");}
 
-    msg ("exiting...");
+    log_msg (ctx, "exiting...");
 
     prog_ctx_destroy (ctx);
 
