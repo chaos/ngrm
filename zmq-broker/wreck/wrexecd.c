@@ -436,7 +436,7 @@ int exec_command (struct prog_ctx *ctx, int i)
     if (cpid < 0)
         log_fatal (ctx, 1, "fork: %s", strerror (errno));
     if (cpid == 0) {
-        log_msg (ctx, "in child going to exec %s", ctx->argv [0]);
+        //log_msg (ctx, "in child going to exec %s", ctx->argv [0]);
 
         setenvf ("MPIRUN_RANK",       1, "%d", globalid (ctx, i));
         setenvf ("CMB_LWJ_TASK_ID",       1, "%d", globalid (ctx, i));
@@ -444,8 +444,10 @@ int exec_command (struct prog_ctx *ctx, int i)
 
         /* give each task its own process group so we can use killpg(2) */
         setpgrp();
-        if (execvp (ctx->argv [0], ctx->argv) < 0)
-            log_fatal (ctx, 1, "execvp: %s", strerror (errno));
+        if (execvp (ctx->argv [0], ctx->argv) < 0) {
+            exit (255);
+            //log_fatal (ctx, 1, "execvp: %s", strerror (errno));
+        }
     }
 
     /*
