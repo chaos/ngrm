@@ -106,10 +106,7 @@ int main (int ac, char **av)
     const char *optarg;
     bool create_only = false;
     int nprocs = 1;
-<<<<<<< HEAD
-=======
     const char *wruninfo;
->>>>>>> wreck-rebase2
     const char *progname = basename (av[0]);
 
     p = process_cmdline (progname, ac, av, &optind);
@@ -117,14 +114,11 @@ int main (int ac, char **av)
     if (optparse_getopt (p, "create-jobid", NULL))
         create_only = true;
 
-<<<<<<< HEAD
-=======
     if (optparse_getopt (p, "wreckrun-pid", &optarg)) {
         if ((wruninfo = optarg) <= 0) 
             err_exit ("Invalid argument: --wreckrun-pid='%s'", optarg);
      }
  
->>>>>>> wreck-rebase2
     if (optparse_getopt (p, "nprocs", &optarg)) {
         if (create_only)
             err_exit ("Do not specify any other options with --create-jobid");
@@ -142,10 +136,7 @@ int main (int ac, char **av)
         if ((ac - optind) <= 0)
             err_exit ("Usage: %s [OPTIONS]... [COMMAND]...", progname);
         util_json_object_add_int (jobreq, "nprocs", nprocs);
-<<<<<<< HEAD
-=======
         util_json_object_add_string (jobreq, "wreckrun-info", wruninfo);
->>>>>>> wreck-rebase2
         json_object_object_add (jobreq, "cmdline",
                 argv_to_json (ac-optind, &av[optind]));
     }

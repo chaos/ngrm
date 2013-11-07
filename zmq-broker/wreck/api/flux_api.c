@@ -152,7 +152,6 @@ query_globalProcTableSizeOr0 (const flux_lwj_id_t *lwj)
      * Getting the lwj.* directory
      */
     if ( (krc = kvs_get_dir ((void *)cmbcxt,
-                             KVS_GET_FILEVAL,
                              &dirobj,
                              kvs_key)) < 0) {
         error_log (
@@ -294,10 +293,6 @@ iter_and_fill_procdesc (kvsdir_t dirobj,
     const char *name    = NULL;
     const char *cmd_str = NULL;
     json_object *rankobj= NULL;
-<<<<<<< HEAD
-    kvsitr_t iter;
-
-=======
     json_object *hosts  = NULL;
     kvsitr_t iter;
 
@@ -309,7 +304,6 @@ iter_and_fill_procdesc (kvsdir_t dirobj,
             goto fatal;
     } 
 
->>>>>>> wreck-rebase2
     /*
      * TODO: 10/23/2013 tell Mark/Jim symlink structure 
      * I need to speed up this query
@@ -368,19 +362,6 @@ iter_and_fill_procdesc (kvsdir_t dirobj,
                                          "pid",
                                          &pid) < 0) {
             error_log (
-<<<<<<< HEAD
-                "proctable ill-formed (nodeid)", 0);
-                goto fatal;
-        } 
-            
-        //ptab_buf[rank].pd.host_name = strdup(nid_str); 
-        // TODO: for testing purpose
-        ptab_buf[rank].pd.host_name = strdup (myhostname);
-        ptab_buf[rank].pd.executable_name = strdup (cmd_str);
-        ptab_buf[rank].pd.pid = pid;
-        ptab_buf[rank].mpirank = rank;
-        ptab_buf[rank].cnodeid = 0;
-=======
                 "proctable ill-formed (pid)", 0);
                 goto fatal;
         } 
@@ -397,7 +378,6 @@ iter_and_fill_procdesc (kvsdir_t dirobj,
         ptab_buf[rank].pd.pid = pid;
         ptab_buf[rank].mpirank = rank;
         ptab_buf[rank].cnodeid = nid;
->>>>>>> wreck-rebase2
 
         incr++;
             
@@ -405,10 +385,7 @@ iter_and_fill_procdesc (kvsdir_t dirobj,
         kvsdir_destroy (procdir);
     }  
 
-<<<<<<< HEAD
-=======
     json_object_put (hosts);
->>>>>>> wreck-rebase2
     kvsitr_destroy (iter);
     *ret_ptab_size = incr;
 
@@ -568,13 +545,7 @@ cmb_error:
 flux_rc_e 
 FLUX_update_destoryLWJCxt (const flux_lwj_id_t *lwj)
 {        
-<<<<<<< HEAD
-    error_log ("FLUX_update_destoryLWJCxt"
-	       "not implmented yet", 1); 
-    return FLUX_NOT_IMPL; 
-=======
     return FLUX_OK;
->>>>>>> wreck-rebase2
 }
 
 
@@ -583,11 +554,6 @@ FLUX_query_pid2LWJId (
                  const flux_starter_info_t *starter,
 		 flux_lwj_id_t *lwj)
 {
-<<<<<<< HEAD
-    error_log ("FLUX_update_destoryLWJCxt"
-	       "not implmented yet", 1); 
-    return FLUX_NOT_IMPL; 
-=======
     flux_rc_e rc = FLUX_OK;
 
     if (starter->pid >= 0) {
@@ -598,7 +564,6 @@ FLUX_query_pid2LWJId (
     }
 
     return rc; 
->>>>>>> wreck-rebase2
 }
 
 
@@ -623,7 +588,6 @@ FLUX_query_LWJId2JobInfo (
      * Getting the lwj.* directory
      */
     if ( (krc = kvs_get_dir ((void *)cmbcxt, 
-                             KVS_GET_FILEVAL,
                              &dirobj,
                              kvs_key)) < 0) {
         error_log (
@@ -650,17 +614,10 @@ FLUX_query_LWJId2JobInfo (
     st = resolve_raw_state (st_lwj);
     free (st_lwj);
 
-    lwj_info->lwj = *lwj;
-<<<<<<< HEAD
-    lwj_info->status = st;
-    lwj_info->starter.hostname = strdup (myhostname);
-    lwj_info->starter.pid = -1;
-=======
     lwj_info->lwjid = *lwj;
     lwj_info->status = st;
     lwj_info->starter.hostname = strdup (myhostname);
     lwj_info->starter.pid = *lwj;
->>>>>>> wreck-rebase2
     lwj_info->proc_table_size 
         = query_globalProcTableSizeOr0 (lwj);
 
@@ -709,7 +666,6 @@ FLUX_query_globalProcTable (
         FLUXAPI_MAX_STRING,
         "lwj.%ld", *lwj);
     if ( (krc = kvs_get_dir ((void *)cmbcxt,
-                             KVS_GET_FILEVAL, 
                              &dirobj,
                              kvs_key)) < 0) {
         error_log (
@@ -811,7 +767,6 @@ FLUX_launch_spawn (
 	FLUXAPI_MAX_STRING,
 	"lwj.%ld", *lwj); 
     if ( (krc = kvs_get_dir ((void *) cmbcxt, 
-                             KVS_GET_FILEVAL,
                              &rootdir,
                              kvs_key)) < 0) {
 	error_log ("kvs_get error", 0);
