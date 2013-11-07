@@ -165,8 +165,17 @@ static void add_jobinfo (plugin_ctx_t *p, int64_t id, json_object *req)
     if (kvs_get_dir (p, 0, &dir, "lwj.%lu", id) < 0)
         err_exit ("kvs_get_dir (id=%lu)", id);
 
-    json_object_object_foreachC (req, i)
-        kvsdir_put (dir, i.key, i.val);
+    json_object_object_foreachC (req, i) {
+        if (strcmp (i.key, "wreckrun-info") == 0) {
+            char mylink[128];
+            snprintf (mylink, 128, "lwj.%lu-sym", id);
+            //kvs_symlink (p, json_object_get_string (i.val), mylink);
+            kvs_put_string (p, json_object_get_string (i.val), mylink);
+        }
+        else {
+            kvsdir_put (dir, i.key, i.val);
+        }
+    }
 
     o = json_object_new_string (ctime_iso8601_now (buf, sizeof (buf)));
     kvsdir_put (dir, "create-time", o);

@@ -257,6 +257,28 @@ start_job (const flux_lwj_id_t *lwj)
     return FLUX_OK;
 }
 
+static char *
+get_hname_from_hosts (json_object *hosts, 
+                int64_t nid)
+{
+    char *rc = NULL;
+
+    json_object *hblurb
+        = json_object_array_get_idx (hosts, nid);
+    if (hblurb) {
+        json_object *entry 
+            = json_object_object_get (hblurb, "name"); 
+        rc = strdup (json_object_get_string (entry));
+        /* must not manually decr ref counts */
+    }
+    else {
+        error_log (
+            "hostname unavailable", 0);
+    }
+
+    return rc;
+}
+
 
 static flux_rc_e
 iter_and_fill_procdesc (kvsdir_t dirobj,
@@ -271,7 +293,16 @@ iter_and_fill_procdesc (kvsdir_t dirobj,
     const char *name    = NULL;
     const char *cmd_str = NULL;
     json_object *rankobj= NULL;
+    json_object *hosts  = NULL;
     kvsitr_t iter;
+
+    /* get the hosts array */
+    if (kvs_get ((void*) cmbcxt, 
+                 "hosts", &hosts) < 0) {
+            error_log (
+                "error kvsdir_get", 0);
+            goto fatal;
+    } 
 
     /*
      * TODO: 10/23/2013 tell Mark/Jim symlink structure 
@@ -331,17 +362,22 @@ iter_and_fill_procdesc (kvsdir_t dirobj,
                                          "pid",
                                          &pid) < 0) {
             error_log (
-                "proctable ill-formed (nodeid)", 0);
+                "proctable ill-formed (pid)", 0);
                 goto fatal;
         } 
-            
-        //ptab_buf[rank].pd.host_name = strdup(nid_str); 
-        // TODO: for testing purpose
-        ptab_buf[rank].pd.host_name = strdup (myhostname);
-        ptab_buf[rank].pd.executable_name = strdup (cmd_str);
+       
+        char *h = NULL;
+        if ( (h = get_hname_from_hosts (hosts, nid))) {  
+            ptab_buf[rank].pd.host_name = h; 
+        }
+        else {
+            ptab_buf[rank].pd.host_name = strdup("NA");
+        }
+        ptab_buf[rank].pd.executable_name 
+            = strdup (cmd_str);
         ptab_buf[rank].pd.pid = pid;
         ptab_buf[rank].mpirank = rank;
-        ptab_buf[rank].cnodeid = 0;
+        ptab_buf[rank].cnodeid = nid;
 
         incr++;
             
@@ -349,6 +385,7 @@ iter_and_fill_procdesc (kvsdir_t dirobj,
         kvsdir_destroy (procdir);
     }  
 
+    json_object_put (hosts);
     kvsitr_destroy (iter);
     *ret_ptab_size = incr;
 
@@ -508,9 +545,7 @@ cmb_error:
 flux_rc_e 
 FLUX_update_destoryLWJCxt (const flux_lwj_id_t *lwj)
 {        
-    error_log ("FLUX_update_destoryLWJCxt"
-	       "not implmented yet", 1); 
-    return FLUX_NOT_IMPL; 
+    return FLUX_OK;
 }
 
 
@@ -519,9 +554,16 @@ FLUX_query_pid2LWJId (
                  const flux_starter_info_t *starter,
 		 flux_lwj_id_t *lwj)
 {
-    error_log ("FLUX_update_destoryLWJCxt"
-	       "not implmented yet", 1); 
-    return FLUX_NOT_IMPL; 
+    flux_rc_e rc = FLUX_OK;
+
+    if (starter->pid >= 0) {
+        *lwj = starter->pid;
+    }
+    else {
+        rc = FLUX_ERROR;
+    }
+
+    return rc; 
 }
 
 
@@ -574,9 +616,10 @@ FLUX_query_LWJId2JobInfo (
     free (st_lwj);
 
     lwj_info->lwj = *lwj;
+    lwj_info->lwjid = *lwj;
     lwj_info->status = st;
     lwj_info->starter.hostname = strdup (myhostname);
-    lwj_info->starter.pid = -1;
+    lwj_info->starter.pid = *lwj;
     lwj_info->proc_table_size 
         = query_globalProcTableSizeOr0 (lwj);
 

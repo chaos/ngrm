@@ -94,10 +94,11 @@ typedef struct _flux_starter_info_t {
     we continue to evole both FLUX run-time and FluxAPI. 
 */
 typedef struct _flux_lwj_info_t {
-    flux_lwj_id_t lwj;       /*!< lwj context */
+    flux_lwj_id_t lwj;         /*!< lwj context */
+    int64_t lwjid;             /*!< 64bit id */
     flux_lwj_status_e status;  /*!< lwj's state */
     flux_starter_info_t starter; 
-    int proc_table_size;    /*!< size of proc_table */
+    size_t proc_table_size;       /*!< size of proc_table */
 } flux_lwj_info_t;
 
 

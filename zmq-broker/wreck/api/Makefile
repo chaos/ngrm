@@ -34,9 +34,15 @@ test_sleeper: $(test_sleeper_SOURCES:.c=.o)
 test_launch_spawn: $(test_launch_spawn_SOURCES:.c=.o)
 	$(CC) $(LDFLAGS) -o $@ $^ $(TSTLIBADD) $(LIBADD)
 
+install: flux_api.h flux_lwj_desc.h $(libfluxapi)
+	mkdir -p lib include; \
+        cp flux_api.h ./include; \
+	cp flux_lwj_desc.h ./include; \
+	cp $(libfluxapi) ./lib; 
+
 docu: doc/doxy_conf.txt
 	cd doc; doxygen doxy_conf.txt
         
 clean:
-	rm -rf *.o *~ $(CLEANFILES) doc/html doc/man doc/latex tags *breakpoint*
+	rm -rf *.o *~ $(CLEANFILES) doc/html doc/man doc/latex tags *breakpoint* lib include
 

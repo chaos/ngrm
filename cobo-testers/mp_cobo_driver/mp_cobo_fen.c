@@ -136,13 +136,14 @@ main (int argc, char *argv[])
     const char *rip;
     int port;
 
-    if ( argc != 2 ) {
+    if ( argc != 3 ) {
         mp_cobo_say_msg (COBOOUT_PREFIX, 1, 
-           "Usage: prog process_count");
+           "Usage: prog process_count sessionid");
         exit(1);
     }
 
-    pCount = atoi (argv[1]);
+    pCount = atoi (argv[1]); 
+    sessid = atoi (argv[2]);
 
     rc = open_bind_listen (&listenSocketFd, &listenSocketInfo);
     if ( rc == -1) {	
@@ -188,7 +189,7 @@ main (int argc, char *argv[])
          char **newargv = NULL;
          char argbuf[128];
          if (getenv("COBO_DEBUG") != NULL) {
-             newargv = (char **) malloc (8*sizeof(char *)); 
+             newargv = (char **) malloc (9*sizeof(char *)); 
              newargv[0] = strdup("/usr/local/bin/totalview");
              newargv[1] = strdup ("/usr/bin/srun");
              newargv[2] = strdup ("-a");
@@ -197,18 +198,20 @@ main (int argc, char *argv[])
              newargv[4] = strdup (argbuf);
              newargv[5] = strdup ("./mp_cobo_be");
              newargv[6] = strdup (ipPortPair);
-             newargv[7] = NULL;
+             newargv[7] = strdup (argv[2]);
+             newargv[8] = NULL;
              execv ((const char *) newargv[0], (char * const *) newargv);
          }
          else {
-             newargv = (char **) malloc (6*sizeof(char *)); 
+             newargv = (char **) malloc (7*sizeof(char *)); 
              newargv[0] = strdup ("/usr/bin/srun");
              newargv[1] = strdup ("--overcommit");
              snprintf (argbuf, 128, "-n%d", pCount);
              newargv[2] = strdup (argbuf);
              newargv[3] = strdup ("./mp_cobo_be");
              newargv[4] = strdup (ipPortPair);
-             newargv[5] = NULL;
+             newargv[5] = strdup (argv[2]);
+             newargv[6] = NULL;
              execv ((const char *) newargv[0], (char * const *) newargv);
          }
          /* SINK */

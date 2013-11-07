@@ -39,7 +39,11 @@
 #ifdef HAVE_FLUX_CMB
 typedef int bool;
 #include <json/json.h>
+#include <zmq.h>
+#include <czmq.h>
+#include "zmsg.h"
 #include "cmb.h"
+#include "kvs.h"
 #endif
 
 /* packet headers for messages in tree */
@@ -1241,8 +1245,11 @@ int pmgr_tree_open_cmb (pmgr_tree_t *t, x_comm_fab_cxt *cf_cxt,
 #define FLUX_CMB_MAX_STR 128
 
     int i;
+    char mydir[FLUX_CMB_MAX_STR];
     char keystr[FLUX_CMB_MAX_STR];
     char valstr[FLUX_CMB_MAX_STR];
+    kvsdir_t mydir_ent; 
+    kvsdir_t mydir_ent2; 
 
     cmb_t cmb_cxt = (cmb_t) cf_cxt->cxt;
 
@@ -1257,47 +1264,106 @@ int pmgr_tree_open_cmb (pmgr_tree_t *t, x_comm_fab_cxt *cf_cxt,
         );
     }
 
+    snprintf (mydir,
+        FLUX_CMB_MAX_STR,
+        "lwj.%ld.cobo-bootstrap", cf_cxt->session);
+
     /* insert our IP address, keyed by our rank */
-    if (snprintf(keystr, FLUX_CMB_MAX_STR, 
-                 "%d", rank) >= FLUX_CMB_MAX_STR) {
+    if ( snprintf (keystr, FLUX_CMB_MAX_STR, 
+                 "%s.%d", mydir, rank) >= FLUX_CMB_MAX_STR) {
         pmgr_error("Could not copy rank into key buffer @ file %s:%d",
             __FILE__, __LINE__
         );
     }
 
-    if (snprintf(valstr, FLUX_CMB_MAX_STR, 
+
+    if ( snprintf (valstr, FLUX_CMB_MAX_STR, 
                  "%s:%hd", inet_ntoa(ip), port) >= FLUX_CMB_MAX_STR) {
         pmgr_error("Could not copy ip:port into value buffer @ file %s:%d",
             __FILE__, __LINE__
         );
     }
     
-    json_object *put_obj = json_object_new_string(valstr);
-    if (cmb_kvs_put (cmb_cxt, keystr, put_obj) < 0) {
-        pmgr_error("cmb_kvs_put could not put copy"
+    if ( kvs_put_string ((void *) cmb_cxt,
+                         keystr, valstr) < 0) {
+        pmgr_error("kvs_put_string could not put copy"
             " key/value pair into kvs @ file %s:%d",
             __FILE__, __LINE__
         );
     } 
-    json_object_put (put_obj);
 
-    if (cmb_kvs_flush (cmb_cxt) < 0) {
-        pmgr_error("cmb_kvs_flush could not flush "
+    /* Begin testing atomicity */
+    char keystr2[FLUX_CMB_MAX_STR];
+    char valstr2[FLUX_CMB_MAX_STR];
+    if ( snprintf (keystr2, FLUX_CMB_MAX_STR, 
+                 "%s.test.%d", mydir, rank) >= FLUX_CMB_MAX_STR) {
+        pmgr_error("Could not create keystr @ file %s:%d",
+            __FILE__, __LINE__
+        );
+    }
+    if ( snprintf (valstr2, FLUX_CMB_MAX_STR, 
+                 "%d", rank) >= FLUX_CMB_MAX_STR) {
+        pmgr_error("Could not copy ip:port into value buffer @ file %s:%d",
+            __FILE__, __LINE__
+        );
+    }
+    if ( kvs_put_string ((void *) cmb_cxt,
+                         keystr2, valstr2) < 0) {
+        pmgr_error("kvs_put_string could not put copy"
+            " key/value pair into kvs @ file %s:%d",
+            __FILE__, __LINE__
+        );
+    } 
+    /* end testing atomicity */
+
+#if 0
+   /* !!This extra commit shouldn't be needed; atomicity bug here?... */
+    if ( kvs_commit ((void *)cmb_cxt) < 0) {
+        pmgr_error("kvs_commit failed"
+            "@ file %s:%d",__FILE__, __LINE__
+        );
+    }
+#endif
+    char uniquename[128];
+    sprintf(uniquename, "topen-cmb.%d", cf_cxt->session);
+    //if ( kvs_fence ((void *)cmb_cxt, "topen-cmb", ranks) < 0) {
+    if ( kvs_fence ((void *)cmb_cxt, uniquename, ranks) < 0) {
+        pmgr_error("kvs_fence failed"
             "@ file %s:%d",__FILE__, __LINE__
         );
     }
 
-    if (cmb_barrier (cmb_cxt, "topen-cmb", ranks) < 0) {
-        pmgr_error("cmb_barrier failed @ file %s:%d",
+    /* Begin testing atomicity */
+    char *atomicity;
+    char keystr3[FLUX_CMB_MAX_STR];
+    int target_rank = (!rank)? 1 : 0;
+    if ( snprintf (keystr3, FLUX_CMB_MAX_STR, 
+                 "%s.test.%d", mydir, target_rank) >= FLUX_CMB_MAX_STR) {
+        pmgr_error("Could not create keystr @ file %s:%d",
             __FILE__, __LINE__
         );
-    }    
-
-    if (cmb_kvs_commit (cmb_cxt, NULL) < 0) {
-        pmgr_error("cmb_kvs_put could not commit "
-            "@ file %s:%d", __FILE__, __LINE__
-        );
     }
+    if ( kvs_get_string ((void *) cmb_cxt,
+                         keystr3, &atomicity) < 0) {
+        pmgr_error("kvs_get_string could not get"
+            " key/value pair into kvs @ file %s:%d",
+            __FILE__, __LINE__
+        );
+    } 
+
+    if (!rank) {
+        if ( strcmp (atomicity, "1") != 0 ) {
+            pmgr_error("atomicity violation");
+        }
+    }
+    else {
+        if ( strcmp (atomicity, "0") != 0 ) {
+            pmgr_error("atomicity violation");
+        }
+    }
+
+    /* end testing a potential race */
+
 
     /* compute our depth, parent,and children */
     pmgr_tree_init_binary(t, ranks, rank);
@@ -1323,7 +1389,7 @@ int pmgr_tree_open_cmb (pmgr_tree_t *t, x_comm_fab_cxt *cf_cxt,
 
                     /* build the key for this process */
                     if (snprintf (keystr, FLUX_CMB_MAX_STR, 
-                                  "%d", connect_rank) >= 128) {
+                                  "%d.%d", mydir, connect_rank) >= 128) {
                         pmgr_error("Could not copy rank %d "
                             "into key buffer @ file %s:%d",
                             connect_rank, __FILE__, __LINE__
@@ -1334,26 +1400,17 @@ int pmgr_tree_open_cmb (pmgr_tree_t *t, x_comm_fab_cxt *cf_cxt,
                      * res_val is returned by strdup and it isn't
                      * always safe to free it                  
                      */
-                    json_object *get_obj; 
-		    resc = cmb_kvs_get (cmb_cxt, 
-                                  (const char *) keystr,
-                                  &get_obj,
-                                  KVS_GET_VAL);
-
-                    if ( resc < 0 ) {
-                        pmgr_error("Could not get key/value for %s"
-                            " @ file %s:%d",
-                            keystr, __FILE__, __LINE__
+                    char *target_str; 
+                    if (kvs_get_string (cmb_cxt, 
+                                  keystr, &target_str) < 0) {
+                        pmgr_error("kvsdir_get_string could not get "
+                            " key/value pair from kvs @ file %s:%d",
+                            __FILE__, __LINE__
                         );
-                    }
-                    res_val = strdup(json_object_get_string (get_obj));
-                    int len = strlen(res_val);
-                    res_val[len-1] = '\0';
-                    res_val++;
-                    json_object_put (get_obj);
+                    } 
 
                     /* break the ip:port string */
-                    ipstr = strtok(res_val, ":");
+                    ipstr = strtok(target_str, ":");
                     portstr = strtok(NULL, ":");
 
                     /* convert ip and port to proper datatypes */
@@ -1365,6 +1422,8 @@ int pmgr_tree_open_cmb (pmgr_tree_t *t, x_comm_fab_cxt *cf_cxt,
                         );
                     }
                     t->child_port[i] = atoi(portstr);
+
+                    free (target_str);
 
                     /* now that we have the IP and port, 
                      * include this info in the name 
@@ -1393,33 +1452,24 @@ int pmgr_tree_open_cmb (pmgr_tree_t *t, x_comm_fab_cxt *cf_cxt,
 
                     /* build the key for this process */
                     if (snprintf(keystr, FLUX_CMB_MAX_STR,
-                                 "%d", connect_rank) >= 128) {
+                                 "%s.%d", mydir, connect_rank) >= 128) {
                         pmgr_error("Could not copy rank %d into"
                             " key buffer @ file %s:%d",
                             connect_rank, __FILE__, __LINE__
                         );
                     }
 
-                    json_object *get_obj; 
-                    /* extract value for this process */
-		    resc = cmb_kvs_get (cmb_cxt, 
-                                  (const char *) keystr,
-                                  &get_obj,
-                                  KVS_GET_VAL);
-                    if ( resc < 0) {
-                        pmgr_error("Could not get key/value"
-                            " for %s @ file %s:%d",
-                            keystr, __FILE__, __LINE__
+                    char *target_str;  
+                    if (kvs_get_string (cmb_cxt,    
+                                  keystr, &target_str) < 0) {
+                        pmgr_error("kvsdir_get_string could not get "
+                            " key/value pair from kvs @ file %s:%d",
+                            __FILE__, __LINE__
                         );
                     }
-                    res_val = strdup (json_object_to_json_string (get_obj));
-                    int len = strlen(res_val);
-                    res_val[len-1] = '\0';
-                    res_val++;
-                    json_object_put (get_obj);
 
                     /* break the ip:port string */
-                    ipstr = strtok(res_val, ":");
+                    ipstr = strtok(target_str, ":");
                     portstr = strtok(NULL, ":");
 
                     /* convert ip and port to proper datatypes */
@@ -1431,6 +1481,8 @@ int pmgr_tree_open_cmb (pmgr_tree_t *t, x_comm_fab_cxt *cf_cxt,
                         );
                     }
                     t->parent_port = atoi(portstr);
+
+                    free (target_str);
 
                     /* now that we have the IP and port, include 
                      * this info in the name 
