@@ -69,6 +69,7 @@
 
 typedef struct _x_comm_fab_cxt {
     void *cxt;
+    int session;
 } x_comm_fab_cxt;
 
 /*

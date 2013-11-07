@@ -4,7 +4,7 @@
 # is not given
 #
 
-PREFIX     ?= /g/g0/dahn/workspace/FLUX-COBO-BUILD/ngrm #/usr/local/tools/pmgr_collective
+PREFIX     ?= /g/g0/dahn/workspace/FLUX-wreck-rebase/ngrm/cobo-testers/cobo-cmb #/usr/local/tools/pmgr_collective
 PMGR_INC   := -I../include 
 PMGR_LIB   := -L../lib -lpmgr_collective
 PMGR_OBJS  := \

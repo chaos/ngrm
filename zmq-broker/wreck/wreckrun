@@ -37,8 +37,11 @@ while true; do
     esac
 done
 
+wruninfo="$HOSTNAME-$$"
+echo $wruninfo
+
 # submit job
-jobid=$($wreck -n $nprocs "$@")
+jobid=$($wreck -n $nprocs -w $wruninfo "$@")
 if [ $? != 0 ]; then
    die "cannot submit new job"
 fi

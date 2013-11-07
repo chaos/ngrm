@@ -21,6 +21,7 @@ main (int argc, char *argv[])
     double *end_ts_array = NULL;
     ip = strtok (argv[1], ":"); 
     port = strtok (NULL, ":");
+    sid = atoi(argv[2]);
 
     if ((ip == NULL) || (port == NULL)) {
 	mp_cobo_say_msg (COBOOUT_PREFIX, 1, "Is fenIp:port ill-formated?");
@@ -48,8 +49,8 @@ main (int argc, char *argv[])
 
     end_ts = gettimeofdayD ();
 
-    if (argc != 2) {
-	mp_cobo_say_msg (COBOOUT_PREFIX, 1, "Usage: BackEnd fenIp:port");
+    if (argc != 3) {
+	mp_cobo_say_msg (COBOOUT_PREFIX, 1, "Usage: BackEnd fenIp:port sessionId");
 	exit(1);
     }
 

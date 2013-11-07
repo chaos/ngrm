@@ -87,7 +87,8 @@ extern flux_rc_e FLUX_update_destoryLWJCxt (
 /*! 
     Interface that converts the pid of the RM starter process 
     to its LWJ id. If the tool wants to work on an LWJ that is 
-    already running, this will come in handy. 
+    already running, this will come in handy. On FLUX, 
+    starter->pid must be *lwj.
 
     @param[in] starter information on the starter process
     @param[out] lwj corresponding lwj context 

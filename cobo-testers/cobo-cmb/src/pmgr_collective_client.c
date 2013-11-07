@@ -741,7 +741,9 @@ int pmgr_open()
 
     /* check whether we have an mpirun process */
     if (pmgr_nprocs > 1) {
-        if (!mpirun_pmi_enable && !(mpirun_shm_enable && pmgr_nprocs >= mpirun_shm_threshold)) {
+        if (!mpirun_pmi_enable 
+            && !mpirun_flux_cmb_enable
+            && !(mpirun_shm_enable && pmgr_nprocs >= mpirun_shm_threshold)) {
             /* open connection back to mpirun process */
             if (pmgr_mpirun_open(pmgr_nprocs, pmgr_me) != PMGR_SUCCESS) {
                 exit(1);
@@ -1034,8 +1036,10 @@ int pmgr_init(int *argc_p, char ***argv_p, int *np_p, int *me_p, int *id_p)
 
         /* rank and size has been harvest from the envVars already */
 
-        /* assign size as the unique job id for now */
+        /* assign *id_p as the session job id for FLUX */
+        //pmgr_id = *id_p;
         pmgr_id = pmgr_nprocs;
+        comm_fab_cxt.session = *id_p;
 #endif
     }
 
@@ -1091,7 +1095,7 @@ int pmgr_init(int *argc_p, char ***argv_p, int *np_p, int *me_p, int *id_p)
     /* set parameters */
     *np_p = pmgr_nprocs;
     *me_p = pmgr_me;
-    *id_p = pmgr_id;
+    //*id_p = pmgr_id;
 
     pmgr_gettimeofday(&end);
     pmgr_debug(2, "Exiting pmgr_init(), took %f seconds for %d procs", pmgr_getsecs(&end,&start), pmgr_nprocs);
