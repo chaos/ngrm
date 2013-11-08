@@ -37,7 +37,8 @@ while true; do
     esac
 done
 
-wruninfo="$HOSTNAME-$$"
+myhost=$(hostname)
+wruninfo="$myhost-$$"
 echo $wruninfo
 
 # submit job

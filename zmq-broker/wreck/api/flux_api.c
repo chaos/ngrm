@@ -554,16 +554,31 @@ FLUX_query_pid2LWJId (
                  const flux_starter_info_t *starter,
 		 flux_lwj_id_t *lwj)
 {
-    flux_rc_e rc = FLUX_OK;
+    char kvs_key[FLUXAPI_MAX_STRING];
+    int64_t intval;
 
-    if (starter->pid >= 0) {
-        *lwj = starter->pid;
-    }
-    else {
-        rc = FLUX_ERROR;
+    snprintf (kvs_key, FLUXAPI_MAX_STRING,
+        "starterinfo.%s-%d",
+        starter->hostname, starter->pid);    
+
+    if ( kvs_get_int64 ((void *)cmbcxt,
+                        kvs_key, &intval) < 0 ) {
+        error_log (
+            "kvs_get_symlink returned error", 0);
+        goto error;
     }
 
-    return rc; 
+    if ( intval < 0 ) {
+        error_log (
+            "invalid lwj id", 0);
+        goto error;
+    }
+
+    *lwj = intval;
+    return FLUX_OK; 
+
+error:
+    return FLUX_ERROR;
 }
 
 
@@ -614,6 +629,7 @@ FLUX_query_LWJId2JobInfo (
     st = resolve_raw_state (st_lwj);
     free (st_lwj);
 
+    memcpy (&(lwj_info->lwj), lwj, sizeof(*lwj));
     lwj_info->lwjid = *lwj;
     lwj_info->status = st;
     lwj_info->starter.hostname = strdup (myhostname);
