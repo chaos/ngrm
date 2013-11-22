@@ -1,0 +1,8 @@
+start 
+
+ftb.ftb_examples.watchdog
+
+watch_dog_event1 info
+watch_dog_event info
+
+end

@@ -31,9 +31,11 @@ CMBD_OBJS = route.o plugin.o $(COMMON_OBJS) cmbd.o
 
 FLUX_OBJS = flux.o
 LIBPMI_OBJS = pmi.o
+LIBFTB_OBJS = ftb.o
 LIBCMB_OBJS = apicli.o $(COMMON_OBJS)
 
 LIBPMI = $(LIBDIR)/libpmi.so.0
+LIBFTB = $(LIBDIR)/libftb.so.0
 LIBCMB = $(LIBDIR)/libcmb.so.0
 
 PLUGINS = plugins/apisrv.so plugins/syncsrv.so plugins/kvssrv.so \
@@ -46,7 +48,7 @@ SUBCMDS = libexec/kvs libexec/ping libexec/mecho libexec/route \
 	libexec/kvswatch libexec/kvsdir libexec/kvstorture \
 	libexec/logger libexec/log libexec/info
 
-BUILD = $(LIBCMB) $(LIBPMI) flux mpi_hello echo cmbd \
+BUILD = $(LIBCMB) $(LIBPMI) $(LIBFTB) flux mpi_hello echo cmbd \
 	$(PLUGINS) $(SUBCMDS)
 
 all: subdirs $(BUILD) subdirs_post
@@ -79,6 +81,12 @@ $(LIBPMI): $(LIBPMI_OBJS) $(LIBCMB)
 	mkdir -p $(shell dirname $@)
 	$(CC) -shared -Wl,--version-script=pmi_version.map \
 		-o $@ $(LIBPMI_OBJS) -L$(LIBDIR) -lcmb $(LDADD_CLI)
+	ln -sf $(shell basename $@) $(@:.0=)
+
+$(LIBFTB): $(LIBFTB_OBJS) $(LIBCMB)
+	mkdir -p $(shell dirname $@)
+	$(CC) -shared -Wl,--version-script=ftb_version.map \
+		-o $@ $(LIBFTB_OBJS) -L$(LIBDIR) -lcmb $(LDADD_CLI)
 	ln -sf $(shell basename $@) $(@:.0=)
 
 $(LIBCMB): $(LIBCMB_OBJS) $(LIBUTIL)
