@@ -1,4 +1,4 @@
-/* ftb.c - implement CiFTS Fault Tolerance Backplane v0.5 */
+/* ftb.c - implement CiFTS Fault Tolerance Backplane v0.5 API */
 
 #define _GNU_SOURCE
 #include <stdio.h>
@@ -16,69 +16,110 @@
 #include "ftb/libftb.h"
 #include "cmb.h"
 
-int FTB_Connect (const FTB_client_t *client_info,
-                FTB_client_handle_t *client_handle)
+#define CLIENT_HANDLE_MAGIC 0x4345eeee
+struct FTB_client_handle {
+    int magic;
+    flux_t f;
+};
+
+static FTB_client_handle_t create_handle (void)
 {
-    int rc = -1;
+    FTB_client_handle_t h;
+
+    if (!(h = malloc (sizeof (*h)))) {
+        errno = ENOMEM;
+        return NULL;
+    }
+    h->magic = CLIENT_HANDLE_MAGIC;
+    if (!(h->f = cmb_init ())) {
+        free (h);
+        return NULL;
+    }
+    return h;
+}
+
+static void destroy_handle (FTB_client_handle_t h)
+{
+    assert (h->magic == CLIENT_HANDLE_MAGIC);
+    flux_handle_destroy (&h->f);
+    free (h);
+}
+
+int FTB_Connect (const FTB_client_t *client_info, /* IN */
+                FTB_client_handle_t *client_handle) /* OUT */
+{
+    FTB_client_handle_t h;
+    int rc = FTB_ERR_GENERAL;
+
+    if (!(h = create_handle ()))
+        goto done;
+
+    *client_handle = h;
+    rc = FTB_SUCCESS;
+done:
     return rc;
 }
 
-int FTB_Publish (FTB_client_handle_t client_handle, const char *event_name,
+int FTB_Disconnect (FTB_client_handle_t h)
+{
+    destroy_handle (h);
+    return FTB_SUCCESS;
+}
+
+
+int FTB_Publish (FTB_client_handle_t h, const char *event_name,
                  const FTB_event_properties_t *event_properties,
                  FTB_event_handle_t * event_handle)
 {
-    int rc = -1;
+    int rc = FTB_SUCCESS;
+    assert (h->magic == CLIENT_HANDLE_MAGIC);
     return rc;
 }
 
 int FTB_Subscribe (FTB_subscribe_handle_t *subscribe_handle,
-                   FTB_client_handle_t client_handle,
+                   FTB_client_handle_t h,
                    const char *subscription_str,
                    int (*callback) (FTB_receive_event_t *, void *), void *arg)
 {
-    int rc = -1;
+    int rc = FTB_SUCCESS;
+    assert (h->magic == CLIENT_HANDLE_MAGIC);
     return rc;
 }
 
 int FTB_Unsubscribe (FTB_subscribe_handle_t *subscribe_handle)
 {
-    int rc = -1;
+    int rc = FTB_SUCCESS;
     return rc;
 }
 
-int FTB_Declare_publishable_events (FTB_client_handle_t client_handle,
+int FTB_Declare_publishable_events (FTB_client_handle_t h,
                                     const char *schema_file,
                                     const FTB_event_info_t *event_info,
                                     int num_events)
 {
-    int rc = -1;
+    int rc = FTB_SUCCESS;
+    assert (h->magic == CLIENT_HANDLE_MAGIC);
     return rc;
 }
 
 int FTB_Poll_event (FTB_subscribe_handle_t shandle,
                     FTB_receive_event_t *receive_event)
 {
-    int rc = -1;
-    return rc;
-}
-
-int FTB_Disconnect (FTB_client_handle_t client_handle)
-{
-    int rc = -1;
+    int rc = FTB_SUCCESS;
     return rc;
 }
 
 int FTB_Get_event_handle (const FTB_receive_event_t receive_event,
                           FTB_event_handle_t * event_handle)
 {
-    int rc = -1;
+    int rc = FTB_SUCCESS;
     return rc;
 }
 
 int FTB_Compare_event_handles (const FTB_event_handle_t event_handle1,
                                const FTB_event_handle_t event_handle2)
 {
-    int rc = -1;
+    int rc = FTB_SUCCESS;
     return rc;
 }
 

@@ -160,9 +160,9 @@ typedef struct FTB_receive_event_info {
 #endif
 } FTB_receive_event_t;
 
-typedef struct FTB_client_handle FTB_client_handle_t;
-typedef struct FTB_subscribe_handle FTB_subscribe_handle_t;
-typedef struct FTB_event_handle FTB_event_handle_t;
+typedef struct FTB_client_handle *FTB_client_handle_t;
+typedef struct FTB_subscribe_handle *FTB_subscribe_handle_t;
+typedef struct FTB_event_handle *FTB_event_handle_t;
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus
