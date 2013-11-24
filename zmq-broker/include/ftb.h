@@ -1,4 +1,4 @@
-/***********************************************************************************/
+/*****************************************************************************/
 /* This file is part of FTB (Fault Tolerance Backplance) - the core of CIFTS
  * (Co-ordinated Infrastructure for Fault Tolerant Systems)
  *
@@ -15,23 +15,20 @@
 /* This software is licensed under BSD. See the file FTB/misc/license.BSD for
  * complete details on your rights to copy, modify, and use this software.
  */
-/***********************************************************************************/
+/*****************************************************************************/
 
-#ifndef FTB_DEF_H
-#define FTB_DEF_H
+#ifndef FTB_H
+#define FTB_H
 
 #include <stdint.h>
 #include <unistd.h>
 #include <sys/types.h>
-//#include "ftb_config.h"
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus
 extern "C" {
 #endif
 /* *INDENT-ON* */
-
-/* #define FTB_TAG */
 
 #define FTB_SUCCESS                             0
 #define FTB_ERR_GENERAL                         (-1)
@@ -55,12 +52,6 @@ extern "C" {
 #define FTB_ERR_INVALID_PARAMETER               (-19)
 #define FTB_ERR_NETWORK_GENERAL                 (-20)
 #define FTB_ERR_NETWORK_NO_ROUTE                (-21)
-
-#ifdef FTB_TAG
-#define FTB_ERR_TAG_NO_SPACE                    (-22)
-#define FTB_ERR_TAG_CONFLICT                    (-23)
-#define FTB_ERR_TAG_NOT_FOUND                   (-24)
-#endif
 
 /* If client will subscribe to any events */
 #define FTB_SUBSCRIPTION_NONE               0x0
@@ -91,18 +82,6 @@ extern "C" {
  */
 #define FTB_EVENT_SIZE               720
 
-#ifdef FTB_TAG
-#define FTB_MAX_DYNAMIC_DATA_SIZE   ((FTB_EVENT_SIZE)-sizeof(FTB_eventspace_t)\
-        -sizeof(FTB_event_name_t)\
-        -sizeof(FTB_severity_t)\
-        -sizeof(FTB_client_jobid_t)\
-        -sizeof(FTB_client_name_t)\
-        -sizeof(FTB_hostip_t)\
-        -sizeof(int)\
-        -sizeof(FTB_tag_len_t)\
-        -sizeof(FTB_event_properties_t))
-#endif
-
 typedef char FTB_eventspace_t[FTB_MAX_EVENTSPACE];
 typedef char FTB_client_name_t[FTB_MAX_CLIENT_NAME];
 typedef char FTB_client_schema_ver_t[FTB_MAX_CLIENTSCHEMA_VER];
@@ -112,11 +91,6 @@ typedef char FTB_event_name_t[FTB_MAX_EVENT_NAME];
 typedef char FTB_hostip_t[FTB_MAX_HOST_ADDR];
 typedef char FTB_subscription_style_t[FTB_MAX_SUBSCRIPTION_STYLE];
 typedef char FTB_pid_starttime_t[FTB_MAX_PID_TIME];
-
-#ifdef FTB_TAG
-typedef uint8_t FTB_tag_t;
-typedef uint8_t FTB_tag_len_t;
-#endif
 
 typedef struct FTB_client {
     FTB_client_schema_ver_t client_schema_ver;
@@ -154,20 +128,49 @@ typedef struct FTB_receive_event_info {
     FTB_location_id_t incoming_src;
     uint8_t event_type;
     char event_payload[FTB_MAX_PAYLOAD_DATA];
-#ifdef FTB_TAG
-    FTB_tag_len_t len;
-    char dynamic_data[FTB_MAX_DYNAMIC_DATA_SIZE];
-#endif
 } FTB_receive_event_t;
 
 typedef struct FTB_client_handle *FTB_client_handle_t;
 typedef struct FTB_subscribe_handle *FTB_subscribe_handle_t;
 typedef struct FTB_event_handle *FTB_event_handle_t;
 
+
+int FTB_Connect(const FTB_client_t * client_info,
+		FTB_client_handle_t * client_handle);
+
+int FTB_Publish(FTB_client_handle_t client_handle,
+		const char *event_name,
+                const FTB_event_properties_t * event_properties,
+		FTB_event_handle_t * event_handle);
+
+int FTB_Subscribe(FTB_subscribe_handle_t * subscribe_handle,
+		FTB_client_handle_t client_handle,
+		const char *subscription_str,
+		int (*callback) (FTB_receive_event_t *, void *),
+                void *arg);
+
+int FTB_Unsubscribe(FTB_subscribe_handle_t * subscribe_handle);
+
+int FTB_Declare_publishable_events(FTB_client_handle_t client_handle,
+		const char *schema_file,
+		const FTB_event_info_t * event_info,
+		int num_events);
+
+int FTB_Poll_event(FTB_subscribe_handle_t shandle,
+		FTB_receive_event_t * receive_event);
+
+int FTB_Disconnect(FTB_client_handle_t client_handle);
+
+int FTB_Get_event_handle(const FTB_receive_event_t receive_event,
+		FTB_event_handle_t * event_handle);
+
+int FTB_Compare_event_handles(const FTB_event_handle_t event_handle1,
+                              const FTB_event_handle_t event_handle2);
+
 /* *INDENT-OFF* */
 #ifdef __cplusplus
-}				/*extern "C" */
+} /*extern "C"*/
 #endif
 /* *INDENT-ON* */
 
-#endif /*FTB_DEF_H */
+#endif

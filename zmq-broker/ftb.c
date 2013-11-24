@@ -13,7 +13,7 @@
 
 #include "flux.h"
 #include "log.h"
-#include "ftb/libftb.h"
+#include "ftb.h"
 #include "cmb.h"
 
 #define CLIENT_HANDLE_MAGIC 0x4345eeee
@@ -63,6 +63,7 @@ done:
 int FTB_Disconnect (FTB_client_handle_t h)
 {
     destroy_handle (h);
+
     return FTB_SUCCESS;
 }
 
