@@ -54,9 +54,6 @@ int callback_handle_recovery(FTB_receive_event_t * evt, void *arg)
     static int numtimes = 0;
     numtimes += 1;
     printf("Callback Function : Callback_handle_recovery called %d times\n", numtimes);
-    printf("In callback_handle_recovery function comp_cat=%s comp=%s event_name=%s\n",
-           shandle->client_handle.client_id.comp_cat, shandle->client_handle.client_id.comp,
-           shandle->subscription_event.event_name);
     ret = FTB_Unsubscribe(shandle);
     if (ret != FTB_SUCCESS) {
         printf("FTB_Unsubscribe failed with code %d\n", ret);
