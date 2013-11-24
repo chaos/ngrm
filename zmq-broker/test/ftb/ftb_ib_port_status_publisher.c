@@ -33,7 +33,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <string.h>
-#include "libftb.h"
+#include "ftb.h"
 #include <infiniband/verbs.h>
 
 typedef struct {

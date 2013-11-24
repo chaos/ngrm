@@ -43,7 +43,7 @@
 #include <signal.h>
 #include <sys/time.h>
 #include <string.h>
-#include "libftb.h"
+#include "ftb.h"
 
 static volatile int done = 0;
 static struct timeval begin, end;

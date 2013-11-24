@@ -34,7 +34,7 @@
 #include <signal.h>
 #include <sys/time.h>
 #include <string.h>
-#include "libftb.h"
+#include "ftb.h"
 
 static volatile int done = 0;
 static int is_server = 0;

@@ -30,7 +30,7 @@
 #include <string.h>
 #include "mpi.h"
 
-#include "libftb.h"
+#include "ftb.h"
 
 
 int main(int argc, char *argv[])

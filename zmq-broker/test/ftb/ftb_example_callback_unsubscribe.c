@@ -33,7 +33,7 @@
 #include <string.h>
 #include <pthread.h>
 
-#include "libftb.h"
+#include "ftb.h"
 
 
 FTB_client_handle_t handle;
