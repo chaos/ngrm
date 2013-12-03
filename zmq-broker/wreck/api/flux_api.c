@@ -93,7 +93,7 @@ append_timestamp ( const char *ei,const char *fstr,
 
     rc = snprintf(obuf, 
 		  len, 
-		  "<Flux API> %s (%s): %s\n", 
+		  "<%s> <Flux API> (%s): %s\n", 
 		  timelog, 
 		  ei, 
 		  fstr);
@@ -564,7 +564,7 @@ FLUX_query_pid2LWJId (
     if ( kvs_get_int64 ((void *)cmbcxt,
                         kvs_key, &intval) < 0 ) {
         error_log (
-            "kvs_get_symlink returned error", 0);
+            "kvs_get_int64 returned error", 0);
         goto error;
     }
 
@@ -711,6 +711,7 @@ FLUX_query_localProcTableSize (
 		 size_t *count)
 {
     /* CMB routine to get procdesc field */
+    error_log ("FLUX_query_localProcTableSize not yet implemented", 0); 
     return FLUX_NOT_IMPL;
 }
 
@@ -724,6 +725,7 @@ FLUX_query_localProcTable (
                  size_t *ret_ptab_size)
 {
     /* CMB routine to get procdesc field */
+    error_log ("FLUX_query_localProcTable not yet implemented", 0); 
     return FLUX_NOT_IMPL;
 }
 
@@ -736,7 +738,7 @@ FLUX_query_LWJStatus (
     flux_lwj_info_t lwjInfo;
 
     /*
-     * TODO: perf optimization will be needed here
+     * Perf optimization may be needed here
      */
     if (FLUX_query_LWJId2JobInfo (lwj, &lwjInfo) != FLUX_OK) {
         *status = lwjInfo.status;
@@ -755,6 +757,7 @@ FLUX_monitor_registerStatusCb (
 	         const flux_lwj_id_t *lwj, 
 		 int (*cback) (flux_lwj_status_e *status))
 {
+    error_log ("FLUX_monitor_registerStatusCb not yet implemented", 0); 
     return FLUX_NOT_IMPL;
 }
 
@@ -829,5 +832,6 @@ flux_rc_e
 FLUX_control_killLWJ (
                  const flux_lwj_id_t *lwj)
 {
+    error_log ("FLUX_control_killLWJ not yet implemented", 0); 
     return FLUX_NOT_IMPL;
 }

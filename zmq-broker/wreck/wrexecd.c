@@ -77,6 +77,14 @@ int globalid (struct prog_ctx *ctx, int localid)
     return ((ctx->nodeid * ctx->nprocs) + localid);
 }
 
+static int sigmask_unblock_all (void)
+{
+    sigset_t mask;
+    sigemptyset (&mask);
+    return sigprocmask (SIG_SETMASK, &mask, NULL);
+}
+
+
 int signalfd_setup (struct prog_ctx *ctx)
 {
     sigset_t mask;
@@ -406,6 +414,15 @@ int exec_command (struct prog_ctx *ctx, int i)
         log_fatal (ctx, 1, "fork: %s", strerror (errno));
     if (cpid == 0) {
         //log_msg (ctx, "in child going to exec %s", ctx->argv [0]);
+
+        if (sigmask_unblock_all () < 0)
+            log_err (ctx, "sigprocmask: %s\n", strerror (errno));
+
+        sigset_t mask;
+        sigemptyset (&mask);
+        sigaddset (&mask, SIGPIPE);
+        if (sigprocmask (SIG_BLOCK, &mask, NULL) < 0)
+            log_err (ctx, "Failed to block signals in parent");
 
         setenvf ("MPIRUN_RANK",       1, "%d", globalid (ctx, i));
         setenvf ("CMB_LWJ_TASK_ID",       1, "%d", globalid (ctx, i));
