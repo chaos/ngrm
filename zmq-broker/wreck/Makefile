@@ -1,5 +1,9 @@
 topdir  :=          $(shell cd .. && pwd)
 builddir  :=        $(shell pwd)
+
+SUBDIRS :=          api
+
+
 programs =          wrexecd wreck
 plugins  =          jobsrv.o resrcsrv.o wrexecsrv.o
 
@@ -16,7 +20,10 @@ CLEANFILES :=       $(programs) rexec-config.h
 wrexecd_SOURCES :=  wrexecd.c
 wreck_SOURCES :=    wreck.c
 
-all:                rexec-config.h $(programs) $(plugins) $(tests)
+all:                rexec-config.h $(programs) $(plugins) $(tests) subdirs
+
+subdirs: $(LIBUTIL) $(LIBCMB)
+	@for f in $(SUBDIRS); do make -C $$f; done
 
 rexec-config.h :
 	@(echo '#define REXECD_PATH "$(builddir)/wrexecd"') > $@
@@ -30,4 +37,5 @@ wreck : $(wreck_SOURCES:.c=.o)
 
 clean:
 	rm -f *.o $(CLEANFILES) tags
+	@for f in $(SUBDIRS); do make -C $$f clean; done
 
