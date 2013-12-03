@@ -23,10 +23,15 @@ test -f "$confpath" || usage
 
 ulimit -c unlimited
 
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+echo $DIR
+export LD_LIBRARY_PATH=$DIR/../lib:${LD_LIBRARY_PATH}
+echo $LD_LIBRARY_PATH
+source /etc/profile.d/modules.sh
+module load mvapich2-gnu-psm
+
+
 if [ -n "$SLURM_NNODES" ]; then
-    export LD_LIBRARY_PATH=/g/g0/dahn/workspace/FLUX-wreck-rebase/ngrm/zmq-broker/lib:${LD_LIBRARY_PATH}
-    source /etc/profile.d/modules.sh
-    module load mvapich2-gnu-psm
     srun --propagate=CORE -N${nnodes:-$SLURM_NNODES} --pty $pepe -c $confpath $cmd
 else 
     test -n "$nnodes" || usage
