@@ -117,7 +117,7 @@ int main (int ac, char **av)
     if (optparse_getopt (p, "wreckrun-pid", &optarg)) {
         if ((wruninfo = optarg) <= 0) 
             err_exit ("Invalid argument: --wreckrun-pid='%s'", optarg);
-     }
+    }
  
     if (optparse_getopt (p, "nprocs", &optarg)) {
         if (create_only)
