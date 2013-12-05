@@ -67,10 +67,12 @@ extern flux_rc_e FLUX_fini ();
 /*! 
     Interface that creates a lightweight job (LWJ) job context 
 
+    @param[in] sinfo create starter info 
     @param[out] lwj new lwj context
 */
 extern flux_rc_e FLUX_update_createLWJCxt (
-	         flux_lwj_id_t *lwj);
+                 int sinfo, 
+                 flux_lwj_id_t *lwj);
 
 
 //!

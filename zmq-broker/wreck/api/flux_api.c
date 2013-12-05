@@ -482,19 +482,35 @@ FLUX_fini ()
 
 
 flux_rc_e 
-FLUX_update_createLWJCxt (flux_lwj_id_t *lwj)
+FLUX_update_createLWJCxt (int s, flux_lwj_id_t *lwj)
 {
     int rc              = FLUX_ERROR;
     int64_t jobid       = -1;
     char *tag           = NULL;
     json_object *jobreq = NULL;
     json_object *o      = NULL;
-
+    char hn[FLUXAPI_MAX_STRING] = {'\0'};
+    char stinfo[FLUXAPI_MAX_STRING] = {'\0'};
+    int mypid = -1;
 
     /* Creating an empty lwj context in KVS 
      * through job plugin
      */
     jobreq = json_object_new_object ();
+
+    if (s != 0) {
+        if (gethostname (hn, FLUXAPI_MAX_STRING) < 0) {
+            error_log ("gethostname returned an error", 0);
+            goto cmb_error;
+        }
+        mypid = getpid ();
+        snprintf (stinfo, FLUXAPI_MAX_STRING,
+            "%s-%d", hn, mypid);
+
+        util_json_object_add_string (jobreq, 
+            "wreckrun-info", stinfo);
+    }
+
     if ( (rc = cmb_send_message (cmbcxt, jobreq, 
 			         NEW_LWJ_MSG_REQ)) < 0) {   
 	error_log (
