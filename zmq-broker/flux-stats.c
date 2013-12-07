@@ -51,7 +51,7 @@ int main (int argc, char *argv[])
         err_exit ("cmb_init");
 
     if (!(response = flux_rpc (h, NULL, "%s.stats", target)))
-        err_exit ("flux_rpc %s.stats", optarg);
+        err_exit ("flux_rpc %s.stats", target);
     printf ("%s\n", json_object_to_json_string_ext (response,
             JSON_C_TO_STRING_PRETTY));
     json_object_put (response);
