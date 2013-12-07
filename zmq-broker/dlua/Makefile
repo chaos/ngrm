@@ -9,7 +9,7 @@ zmsg_test_OBJS += zmsg-lua.o zmsg-test.o json-lua.o lutil.o
 
 LIBS     += -lcmb
 LDFLAGS  += -L $(topdir)/lib -Wl,-rpath=$(topdir)/lib
-CFLAGS   += -I$(topdir) -I$(topdir)/include
+CFLAGS   += -I$(topdir) -I$(topdir)/include -I/usr/include/lua5.1
 
 .SUFFIXES: .c .o .so
 
