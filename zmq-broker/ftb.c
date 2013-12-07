@@ -19,10 +19,12 @@
 #define CLIENT_HANDLE_MAGIC 0x4345eeee
 struct FTB_client_handle {
     int magic;
+    FTB_client_t cinfo;
     flux_t f;
+    pthread_t cb_t; /* thread for callbacks */
 };
 
-static FTB_client_handle_t create_handle (void)
+static FTB_client_handle_t create_handle (const FTB_client_t *cinfo)
 {
     FTB_client_handle_t h;
 
@@ -31,6 +33,7 @@ static FTB_client_handle_t create_handle (void)
         return NULL;
     }
     h->magic = CLIENT_HANDLE_MAGIC;
+    memcpy (&h->cinfo, cinfo, sizeof (h->cinfo));
     if (!(h->f = cmb_init ())) {
         free (h);
         return NULL;
@@ -51,7 +54,7 @@ int FTB_Connect (const FTB_client_t *client_info, /* IN */
     FTB_client_handle_t h;
     int rc = FTB_ERR_GENERAL;
 
-    if (!(h = create_handle ()))
+    if (!(h = create_handle (client_info)))
         goto done;
 
     *client_handle = h;

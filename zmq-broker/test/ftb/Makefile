@@ -13,24 +13,28 @@ LDFLAGS = -Wl,-rpath,$(LIBDIR)
 CFLAGS += $(EXTRA_CFLAGS)
 LDADD = $(EXTRA_LDFLAGS) -ljson -lzmq -lczmq -lcrypto -lutil -luuid -lcmb -lftb
 
-BUILD = ftb_alltoall ftb_eventhandle_example ftb_example_callback_unsubscribe \
-	ftb_grouping ftb_ib_port_status_publisher ftb_multiplecomp \
-	ftb_notify_logger ftb_pingpong ftb_polling_logger ftb_simple_publisher \
-	ftb_simple_subscriber ftb_throw_delay_mpi ftb_watchdog
+BUILD = ftb_eventhandle_example ftb_example_callback_unsubscribe \
+	ftb_ib_port_status_publisher ftb_multiplecomp ftb_notify_logger \
+	ftb_pingpong ftb_polling_logger ftb_simple_publisher \
+	ftb_simple_subscriber ftb_watchdog
+
+ifeq ($(shell source /etc/profile.d/modules.sh && module load $(MPIMOD) && echo  OK),OK)
+BUILD += ftb_alltoall ftb_grouping ftb_throw_delay_mpi
+endif
 
 all: $(BUILD)
 
 ftb_alltoall: ftb_alltoall.c
-	(source /etc/profile.d/modules.sh;\
-		module load $(MPIMOD);\
+	(source /etc/profile.d/modules.sh &&\
+		module load $(MPIMOD) && \
 		mpicc $(CFLAGS) $(LDFLAGS) -o $@ $< $(LDADD))
 ftb_grouping: ftb_grouping.c
-	(source /etc/profile.d/modules.sh;\
-		module load $(MPIMOD);\
+	(source /etc/profile.d/modules.sh &&\
+		module load $(MPIMOD) &&\
 		mpicc $(CFLAGS) $(LDFLAGS) -o $@ $< $(LDADD))
 ftb_throw_delay_mpi: ftb_throw_delay_mpi.c
-	(source /etc/profile.d/modules.sh;\
-		module load $(MPIMOD);\
+	(source /etc/profile.d/modules.sh &&\
+		module load $(MPIMOD) &&\
 		mpicc $(CFLAGS) $(LDFLAGS) -o $@ $< $(LDADD))
 
 ftb_eventhandle_example: ftb_eventhandle_example.o
