@@ -20,7 +20,7 @@ libfluxapi_SOURCES        := flux_api.c flux_api.h flux_lwj_desc.h
 test_sleeper_SOURCES      := test_sleeper.c 
 test_launch_spawn_SOURCES := test_launch_spawn.c
 
-all: $(libfluxapi) $(programs) docu
+all: $(libfluxapi) $(programs) docu install
 
 libfluxapi.so : flux_api.o 
 	$(CC) -shared $(LDFLAGS) -o $@ $^ $(LIBADD)
