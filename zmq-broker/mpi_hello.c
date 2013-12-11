@@ -44,6 +44,7 @@ main(int argc, char *argv[])
 		  "0: completed MPI_Init in %0.3fs.  There are %d tasks\n",
 		   time_since (ts0)/1000, ntasks);
                 fflush(stdout);
+		sleep(60);
         }
 
         MPI_Barrier(MPI_COMM_WORLD);

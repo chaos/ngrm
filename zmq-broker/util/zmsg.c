@@ -326,7 +326,8 @@ static zframe_t *_json_frame (zmsg_t *zmsg)
 
 static zframe_t *_sender_frame (zmsg_t *zmsg)
 {
-    zframe_t *zf, *prev;
+    zframe_t *zf = NULL;
+    zframe_t *prev = NULL;
 
     zf = zmsg_first (zmsg);
     while (zf && zframe_size (zf) != 0) {

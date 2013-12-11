@@ -66,7 +66,7 @@ $(LIBUTIL):
 mpi_hello: mpi_hello.c
 	(source /etc/profile.d/modules.sh;\
 		module load $(MPIMOD);\
-		mpicc $(LDFLAGS) -o $@ $<)
+		mpicc -g -O0 $(LDFLAGS) -o $@ $<)
 
 clean:
 	rm -f *.o $(BUILD)

@@ -38,6 +38,7 @@ typedef enum {
 #define NEW_LWJ_MSG_REQ            "job.create"
 #define NEW_LWJ_MSG_REPLY          "job.create"
 #define NEW_LWJ_MSG_REPLY_FIELD    "jobid"
+#define BOOTSTRAP_FILE             "bootstrap_file"
 
 #define JOB_STATE_RESERVED         "reserved"
 #define JOB_STATE_STARTING         "starting"
@@ -48,6 +49,8 @@ typedef enum {
 #define JOB_CMDLINE_KEY            "cmdline"
 #define JOB_NPROCS_KEY             "nprocs"
 #define JOB_PROCTAB_KEY            "procdesc"
+#define JOB_APP_BOOTSTRAP          "app-bootstrap"
+#define JOB_APP_BOOTSTRAP_ARGV     "app-bootstrap-argv"
 
 #define REXEC_PLUGIN_RUN_EVENT_MSG "event.rexec.run."
 #define FLUXAPI_MAX_STRING         1024
@@ -183,6 +186,108 @@ retloc:
 }
 
 
+static uint8_t *
+read_whole_file (const char * bootpath, size_t *s)
+{
+    struct stat sb;
+    uint8_t *contents; 
+    if (stat (bootpath, &sb) != 0) {
+        error_log (
+            "Failed to stat bootstrapper: %s",
+            0, bootpath);
+        goto error;
+    }
+
+    contents = (uint8_t *) malloc (sb.st_size);
+    FILE *fptr = fopen (bootpath, "r");
+    if (fptr == NULL) {
+        error_log (
+            "Failed to open the bootstrapper: %s",
+            0, bootpath);
+        goto error;
+    }
+
+    /* TODO: fread wrapper */
+    size_t n = fread (contents,
+                      sizeof (uint8_t),
+                      sb.st_size,
+                      fptr);
+
+    if (n != sb.st_size) {
+        error_log (
+            "Failed to open the bootstrapper: %s",
+            0, bootpath);
+        goto error;
+    }
+    *s = sb.st_size;
+
+    fclose (fptr);
+    return contents;
+
+error:
+    return NULL;
+}
+
+
+static flux_rc_e
+put_bootstrapper_block (
+                kvsdir_t rootdir, 
+                const char * bootpath,
+                char * const bootargv[])
+{
+    json_object *b_arr = NULL;
+    char * const *b_argv = NULL;
+    size_t s = 0;
+
+    if (getenv ("DIST_BOOTSTRAP_FILE") != NULL) {
+
+        uint8_t *contents = NULL;
+        json_object *b = NULL;
+
+        if ( !(contents = read_whole_file (bootpath, &s)) ) {
+            error_log (
+                "Failed to read bootstrapper: %s",
+                0, bootpath);
+            goto error;
+        }
+
+        b = json_object_new_object ();
+        util_json_object_add_base64 (b,
+                                     BOOTSTRAP_FILE,
+                                     contents,
+                                     (int) s);
+
+        if ( kvsdir_put(rootdir, JOB_APP_BOOTSTRAP, b) < 0) {
+            error_log (
+                "Failed to put bootstrapper %s into KVS",
+                0, bootpath);
+            goto error;
+        }
+        json_object_put (b);
+    }
+
+    b_arr = json_object_new_array ();
+    b_argv = bootargv;
+    while (*b_argv != NULL) {
+        json_object *o = json_object_new_string (*b_argv);
+        json_object_array_add (b_arr, o);
+        b_argv++;
+    }
+
+    if ( kvsdir_put (rootdir, JOB_APP_BOOTSTRAP_ARGV, b_arr) < 0 ) {
+        error_log ("Failed to put bootstrapper argv", 0);
+        goto error;
+    }
+
+    json_object_put (b_arr);
+
+    return FLUX_OK;
+
+error:
+    return FLUX_ERROR;
+}
+
+
 static flux_rc_e
 put_job_metadata (
                 kvsdir_t rootdir, 
@@ -190,6 +295,8 @@ put_job_metadata (
                 const flux_lwj_id_t *coloc_lwj,
                 const char * lwjpath,
                 char * const lwjargv[],
+                const char * bootpath,
+                char * const bootargv[],
                 int coloc,
                 int nnodes,
                 int nprocs_per_node)
@@ -221,13 +328,21 @@ put_job_metadata (
         goto error;
     }
 
+    if (bootpath) {
+        if ( put_bootstrapper_block (rootdir, 
+                             bootpath, 
+                             bootargv) != FLUX_OK) {
+            error_log ("Failed to put bootstrapper into KVS", 0);
+            goto error;
+        }
+    }
+
     if ( (krc = kvs_commit ((void *) cmbcxt) < 0)) {
         error_log ("kvs_put failed", 0);
         goto error;
     }
 
     json_object_put (cmd_array);
-
     return FLUX_OK;
 
 error:
@@ -785,6 +900,8 @@ FLUX_launch_spawn (
 		const flux_lwj_id_t *coloc_lwj,
                 const char * lwjpath,
 		char * const lwjargv[],
+                const char * bootpath,
+		char * const bootargv[],
                 int coloc,
 		int nnodes,
 		int nprocs_per_node)
@@ -826,6 +943,7 @@ FLUX_launch_spawn (
 
     if ( put_job_metadata (rootdir, sync, coloc_lwj,
                            lwjpath, lwjargv,
+                           bootpath, bootargv,
                            coloc, nnodes, 
                            nprocs_per_node) != FLUX_OK) {
 	error_log ("failed to put job metadata", 0); 

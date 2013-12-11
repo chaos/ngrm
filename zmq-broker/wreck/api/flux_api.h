@@ -229,6 +229,8 @@ extern flux_rc_e FLUX_monitor_registerStatusCb (
     @param[in] coloc_lwj target lwj that lwj me must be co-located with  
     @param[in] lwjpath executable path to the lwj program
     @param[in] lwjargv commandline vector for the lwj program, the first element must be the lwj program path  
+    @param[in] bootpath executable path to the bootsrapper program
+    @param[in] bootargv commandline vector for the bootrstrapper program, the first element must be the bootstrapper program
     @param[in] coloc if 1, lwj is co-located with coloc_lwj 
     @param[in] nnodes number of nodes to run on 
     @param[in] nproc_per_node number of processes per ndoe run with  
@@ -240,6 +242,8 @@ FLUX_launch_spawn (
 		 const flux_lwj_id_t *coloc_lwj,
                  const char * lwjpath,
 		 char * const lwjargv[],
+                 const char * bootpath,
+                 char * const bootargv[],
                  int coloc,
 		 int nnodes,
 		 int nproc_per_node);

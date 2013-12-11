@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/signalfd.h>
+#include <sys/stat.h>
 #include <json/json.h>
 #include <czmq.h>
 #include <sys/syslog.h>
@@ -25,6 +26,7 @@ struct prog_ctx {
 
     int argc;
     char **argv;
+    char **alt_argv;        /* If requested, invoke alternative argv */
 
     zctx_t *zctx;
     zloop_t *zl;            /* zmq event loop       */
@@ -209,18 +211,139 @@ int json_array_to_argv (struct prog_ctx *ctx,
     return (0);
 }
 
+int json_array_to_alt_argv (struct prog_ctx *ctx, 
+    json_object *b, json_object *bv, 
+    char ***alt_argvp, char **argv, int argc) 
+{
+    int i, j, l, nb;
+    int alt_argc = 0;
+    uint8_t *content = NULL;
+    FILE *fptr = NULL;
+    char b_path[PATH_MAX];
+
+    if (b) {
+        /*
+         * Retrieving boostrap_file from JSON obj
+         */
+        if (util_json_object_get_base64 (b, 
+                 "bootstrap_file", &content, &l) < 0) {
+            log_err (ctx, "json_array_to_alt_argv: "
+                "error retrieving bootstrap_file");
+            errno = EINVAL;
+            return -1;
+        }
+
+        /*
+         * Copying boostrap_file into node-local storage
+         */
+        snprintf (b_path, PATH_MAX, "/tmp/spindle_bootstrap-%d-%lu", 
+                  ctx->nodeid, ctx->id);  
+        fptr = fopen (b_path, "wb");
+        if (!fptr) {
+            log_err (ctx, "json_array_to_alt_argv: "
+                 "error opening %s", b_path);
+            return -1;
+        }
+        nb = fwrite ((const void *) content, 
+                     sizeof(uint8_t), 
+                     (size_t) l, 
+                     fptr);
+        if (nb != (int) l) {
+            log_err (ctx, "json_array_to_alt_argv: "
+                "error writing bootstrap_file");
+            fclose (fptr);
+            return -1;
+        }
+        if (fchmod (fileno(fptr), S_IRUSR|S_IWUSR|S_IXUSR) != 0) {
+            log_err (ctx, "json_array_to_alt_argv: "
+                "error chmod bootstrap_file");
+            fclose (fptr);
+            return -1;
+        }
+        fclose (fptr);
+        free (content);
+    }
+
+    /*
+     * Handling boostrap argv 
+     */
+    if (json_object_get_type (bv) != json_type_array) {
+        log_err (ctx, "json_array_to_alt_argv: not an array");
+        errno = EINVAL;
+        return -1;
+    }
+
+    alt_argc = json_object_array_length (bv); 
+    if (alt_argc <= 0) {
+        log_err (ctx, "json_array_to_alt_argv: "
+            "array length = %d", alt_argc);
+        return -1;
+    }
+    alt_argc += argc;
+
+    *alt_argvp = xzmalloc ((alt_argc + 1) * sizeof (char **));
+    if (b) {
+        (*alt_argvp)[0] = strdup (b_path);
+        i = 1;
+    }
+    else {
+        i = 0;
+    }
+    while (i < json_object_array_length (bv)) {
+        json_object *ox = json_object_array_get_idx (bv, i);
+        if (json_object_get_type (ox) != json_type_string) {
+            log_err (ctx, "malformed boostrap argv");
+            free (*alt_argvp);
+            return -1;
+        }
+        (*alt_argvp) [i] = strdup (json_object_get_string (ox));
+        ++i;
+    }
+    for (j=0; j < argc; ++j) {
+        (*alt_argvp)[i] = argv[j];
+        ++i;
+    }
+    (*alt_argvp)[i] = NULL;
+
+    return 0;
+}
+
 int prog_ctx_load_lwj_info (struct prog_ctx *ctx, int64_t id)
 {
     json_object *v;
-
+    json_object *b = NULL;
+    json_object *bv = NULL;
+ 
     if (kvsdir_get (ctx->kvs, "cmdline", &v) < 0)
         log_fatal (ctx, 1, "kvs_get: cmdline");
 
-    log_msg (ctx, "got cmdline object : '%s'", json_object_to_json_string (v));
+    log_msg (ctx, "got cmdline object : '%s'", 
+        json_object_to_json_string (v));
+
+    if (!(kvsdir_get (ctx->kvs, "app-bootstrap-argv", &bv) < 0)) { 
+        kvsdir_get (ctx->kvs, "app-bootstrap", &b); 
+    }
+    else {
+        log_msg (ctx, "app-bootstrap-argv isn't present: '%s'", 
+            json_object_to_json_string (bv));
+    }
 
     if (json_array_to_argv (ctx, v, &ctx->argv, &ctx->argc) < 0)
         log_fatal (ctx, 1, "Failed to get cmdline from kvs");
+
     json_object_put (v);
+
+    if (bv) {
+        if (json_array_to_alt_argv (ctx, b, bv, &ctx->alt_argv, 
+                                    ctx->argv, ctx->argc) < 0) {
+            log_fatal (ctx, 1, "Failed to get alt_argv from kvs");
+        }
+    }
+
+    if (b)
+        json_object_put (b);
+    if (bv)
+        json_object_put (bv);
 
     if (kvsdir_get_int (ctx->kvs, "nprocs", &ctx->nprocs) < 0) /* Assume ENOENT */
         ctx->nprocs = 1;
@@ -430,7 +553,9 @@ int exec_command (struct prog_ctx *ctx, int i)
 
         /* give each task its own process group so we can use killpg(2) */
         setpgrp();
-        if (execvp (ctx->argv [0], ctx->argv) < 0) {
+
+        char **argv = ctx->alt_argv ? ctx->alt_argv : ctx->argv;
+        if (execvp (argv[0], argv) < 0) {
             exit (255);
             //log_fatal (ctx, 1, "execvp: %s", strerror (errno));
         }

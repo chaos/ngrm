@@ -130,7 +130,8 @@ int env_getints (char *name, int **iap, int *lenp, int dflt_ia[], int dflt_len)
 int mapstr (char *s, mapstrfun_t fun, void *arg1, void *arg2)
 {
     char *cpy = xstrdup (s);
-    char *saveptr, *a1 = cpy;
+    char *saveptr = NULL;
+    char *a1 = cpy;
     int rc = 0;
 
     for (;;) {

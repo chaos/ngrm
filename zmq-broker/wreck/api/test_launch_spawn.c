@@ -58,7 +58,7 @@ main (int argc, char *argv[])
 	    argv[1]);	
     }
 
-    if ( ( rc = FLUX_update_createLWJCxt(&lwj)) 
+    if ( ( rc = FLUX_update_createLWJCxt(0, &lwj)) 
 	 != FLUX_OK ) {
 	error_log ("Test Failed: "
 	    "FLUX_update_createLWJCx returned an error.", 0);
@@ -99,6 +99,8 @@ main (int argc, char *argv[])
              NULL, 
 	     lwjargv[0], 
              lwjargv,
+             NULL,
+             NULL,
 	     0,
              NNODES,
              NPROCS_PER_NODE);

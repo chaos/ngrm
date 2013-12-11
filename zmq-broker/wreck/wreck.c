@@ -106,7 +106,7 @@ int main (int ac, char **av)
     const char *optarg;
     bool create_only = false;
     int nprocs = 1;
-    const char *wruninfo;
+    const char *wruninfo = NULL;
     const char *progname = basename (av[0]);
 
     p = process_cmdline (progname, ac, av, &optind);

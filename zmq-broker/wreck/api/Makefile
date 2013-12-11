@@ -3,7 +3,7 @@ builddir   :=        $(shell pwd)
 libfluxapi :=        libfluxapi.so
 programs   :=        test_sleeper test_launch_spawn
 
-CFLAGS     +=       -ggdb -Wall -Werror \
+CFLAGS     +=       -O2 -ggdb -Wall -Werror \
                     -I./ -I$(topdir) -I$(topdir)/include -I$(topdir)/util
 LDFLAGS    +=       -L$(topdir)/lib \
                     -L$(topdir)/util \
