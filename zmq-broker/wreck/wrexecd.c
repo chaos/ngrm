@@ -521,8 +521,10 @@ int send_exit_message (struct prog_ctx *ctx, int taskid, int status)
     if (kvs_put (ctx->cmb, key, o) < 0)
         return (-1);
 
+#if 0
     if (kvs_commit (ctx->cmb) < 0)
         return (-1);
+#endif
 
     json_object_put (o);
 
