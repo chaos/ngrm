@@ -6,6 +6,7 @@
  *--------------------------------------------------------------------------------
  *
  *  Update Log:
+ *        Dec 12 2013 DHA: DIST_BOOTSTRAP_FILE support
  *        Oct 25 2013 DHA: Adapt to new CMB/KVS APIs
  *        Oct 07 2013 DHA: File created
  */
@@ -53,6 +54,7 @@ typedef enum {
 #define JOB_APP_BOOTSTRAP_ARGV     "app-bootstrap-argv"
 
 #define REXEC_PLUGIN_RUN_EVENT_MSG "event.rexec.run."
+#define REXEC_PLUGIN_KILL_EVENT_MSG "event.rexec.kill."
 #define FLUXAPI_MAX_STRING         1024
 
 
@@ -363,7 +365,29 @@ start_job (const flux_lwj_id_t *lwj)
         "%s%lu", REXEC_PLUGIN_RUN_EVENT_MSG, *lwj);
 
     if ( cmb_event_send (cmbcxt, event_msg) < 0 ) {
-        error_log ("Sending a cmb event failed"
+        error_log ("Sending a run event failed"
+                   "in FLUX_launch_spawn", 0);
+        return FLUX_ERROR;
+    }
+
+    return FLUX_OK;
+}
+
+
+static flux_rc_e
+kill_job (const flux_lwj_id_t *lwj)
+{
+    char event_msg[FLUXAPI_MAX_STRING] = {'\0'};
+
+    /*
+     * Now KVS has all information, 
+     * so tell the rexec plug-in to run
+     */
+    snprintf (event_msg, FLUXAPI_MAX_STRING,
+        "%s%lu", REXEC_PLUGIN_KILL_EVENT_MSG, *lwj);
+
+    if ( cmb_event_send (cmbcxt, event_msg) < 0 ) {
+        error_log ("Sending a kill event failed"
                    "in FLUX_launch_spawn", 0);
         return FLUX_ERROR;
     }
@@ -966,6 +990,5 @@ flux_rc_e
 FLUX_control_killLWJ (
                  const flux_lwj_id_t *lwj)
 {
-    error_log ("FLUX_control_killLWJ not yet implemented", 0); 
-    return FLUX_NOT_IMPL;
+    return kill_job (lwj);
 }
