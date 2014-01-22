@@ -1,1 +1,96 @@
 \subsection{Communication Message Broker}
+
+A communication framework supports the \flux\ hierarchical job model
+by establishing a {\em comms session} to contain each \flux\ instance
+and provide a foundation for the distributed components of \flux\ to
+be built upon.
+This framework enables secure, scalable communication
+within a comms session, limits communication between sessions,
+and allows new comms sessions to be created, resized, destroyed,
+and monitored by existing ones in a parent-child relationship.
+
+We have built a primitive prototype of the \flux\ communications framework
+using \zMQ~\cite{ZMQGuide} which we can launch within a
+Slurm~\cite{Jette02slurm} job.
+\zMQ\ provides the ability to manipulate opaque,
+multipart messages, and carry them across various transports, including
+TCP and Pragmatic General Multicast (PGM)~\cite{rfc3208}
+using a socket-like API.
+\zMQ\ provides abstractions that ease implementation of common
+messaging patterns including {\em request-reply}, {\em publish-subscribe},
+and {\em push-pull}.
+\zMQ\ can be used to build applications or custom message brokers.
+
+Our prototype consists of a distributed Comms Message Broker (CMB)
+daemon which runs on each node of a comms session, interconnected using
+three persistent overlay network planes:
+\begin{enumerate}
+\item{a PGM {\em publish-subscribe} bus overlay network for events}
+\item{a TCP {\em dealer-router} (advanced {\em request-response})
+tree overlay for upstream RPC's and reductions
+similar to those enabled by MrNET~\cite{mrnet}}
+\item{a secondary TCP {\em dealer-router} tree overlay network for
+downstream RPC's.}
+\end{enumerate}
+A typical comms session wire-up is depicted in Figure~\ref{FigCommsWireup}.
+Each message plane implements reliable, in-order message delivery, and
+can self-heal when nodes other than the root node fail.
+Security and comprehensive fault-tolerance are not yet implemented,
+but are near-term design topics.
+
+The CMB allows us to experiment with loosely coupled distributed services
+while reusing the underlying message routing framework.  Various comms
+services have been implemented as CMB plugins.  Plugins currently exist for
+\begin{itemize}
+\item{session heartbeat synchronization}
+\item{liveness monitoring and topology adaptation}
+\item{reductive logging}
+\item{reductive monitoring}
+\item{collective barriers}
+\item{collective group services}
+\item{key-value store}
+\item{remote execution}
+\item{scheduling}
+\item{resource allocation}
+\end{itemize}
+Each embodies an active topic for study and experimentation by the \flux\ team.
+
+In addition to CMB plugins, external programs can communicate with the CMB
+via a UNIX domain socket.  A {\em flux} utility wraps up two dozen or so
+modular subcommands used to interact with and test the CMB plugins.
+
+All CMB messages have a uniform multi-part message format consisting of
+a {\em tag frame} and a {\em JSON~\cite{rfc4627} frame}.  The tag frame identifies the
+message recipient using a hierarchical name space.  For example a message
+sent to the tag {\em kvs.put} is routed to the {\em kvs} plugin, and internally
+to its handler for {\em put}.  The tag frame format is identical to
+\zMQ's {\em publish-subscribe} topic string format, thus CMB messages
+have the same format on all three overlay networks.
+The message payload is contained in the free-form JSON frame.
+
+Most requests are routed via the upstream request overlay network
+and utilize the \zMQ\ {\em dealer-router} pattern's built-in source routing
+scheme for returning optional replies to the sender over the same network.
+Requests are routed to the first plugin encountered in the tree that claims
+the tag, or NAK'ed at the root.  This enables plugins to be loaded at
+a variable tree depth to tune scaling properties or conserve node resources
+for jobs toward the leaves.
+Reductions are simply requests that are aggregated and retransmitted between
+instances of a plugin, traversing upstream.
+
+Explicit rank-addressing is available for requests that must target a
+specific CMB instance by rank.  The rank is prepended to the tag frame,
+and routing tables are consulted at each hop to determine which overlay
+to use to reach the destination.  If the downstream overlay is selected,
+the routing table entry determines which branch of the tree to use.
+In this manner an RPC can take place between any two ranks in the session.
+
+As our designs and prototypes for basic \flux\ building blocks evolve,
+the CMB evolves to provide necessary services.  For example, the CMB API
+now has both C and Lua bindings and a custom event reactor interface in
+response to the experience of meeting a recent milestone to launch an
+MPI job internally and co-locate a distributed debugger.  We expect
+to continue evolving the CMB prototype for several more months until
+we have enough of a design to build the real \flux\ communication
+framework, which is likely to involve significant rewrites of many
+parts of the prototype.
