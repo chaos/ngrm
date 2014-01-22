@@ -28,7 +28,7 @@ three persistent overlay network planes:
 \item{a PGM {\em publish-subscribe} bus overlay network for events}
 \item{a TCP {\em dealer-router} (advanced {\em request-response})
 tree overlay for upstream RPC's and reductions
-similar to those enabled by MrNET~\cite{mrnet}}
+similar to those enabled by MrNet~\cite{mrnet}}
 \item{a secondary TCP {\em dealer-router} tree overlay network for
 downstream RPC's.}
 \end{enumerate}
@@ -72,9 +72,9 @@ Most requests are routed via the upstream request overlay network
 and utilize the \zMQ\ {\em dealer-router} pattern's built-in source routing
 scheme for returning optional replies to the sender over the same network.
 Requests are routed to the first plugin encountered in the tree that claims
-the tag, or NAK'ed at the root.  This enables plugins to be loaded at
-a variable tree depth to tune scaling properties or conserve node resources
-for jobs toward the leaves.
+the tag, or are negatively acknowledged at the root.  This enables plugins
+to be loaded at a variable tree depth to tune its level of distribution
+or conserve node resources for jobs toward the leaves.
 Reductions are simply requests that are aggregated and retransmitted between
 instances of a plugin, traversing upstream.
 
@@ -91,6 +91,5 @@ now has both C and Lua bindings and a custom event reactor interface in
 response to the experience of meeting a recent milestone to launch an
 MPI job internally and co-locate a distributed debugger.  We expect
 to continue evolving the CMB prototype for several more months until
-we have enough of a design to build the real \flux\ communication
-framework, which is likely to involve significant rewrites of many
-parts of the prototype.
+our design has reached stability and we build a production-level \flux\ 
+communication framework.
