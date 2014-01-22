@@ -24,7 +24,7 @@ texs =  Main.tex	 \
 
 #txts = fig/mpa-code-frag.txt fig/Challenges.pdf
 
-bibs = project.bib
+bibs = ../bib/project.bib  ../bib/rfc.bib
 
 #epsfigs = fig/fgfs_mpi_perf.eps \
 	  fig/fgfs_mpi_sync_perf.eps \
@@ -71,4 +71,5 @@ clean:
 clobber: clean	
 	rm -f Flux-JSSPP.pdf
 
-
+view: Flux-JSSPP.pdf
+	evince $<
