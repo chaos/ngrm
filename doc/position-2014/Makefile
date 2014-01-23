@@ -18,6 +18,7 @@ texs =  Main.tex	 \
 	FLUX-CMB.tex     \
 	FLUX-KVS.tex     \
 	Results-Perf.tex \
+	Results-KAP.tex \
 	Results-Case.tex \
 	Related.tex      \
 	Conclusion.tex        

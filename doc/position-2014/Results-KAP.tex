@@ -1,0 +1,67 @@
+One of the most important initial goals of \flux\ is to gain
+a fundamental understanding on key design challenges pertaining
+to the RM paradigm shift.
+In the context of \flux's run-time system, the scalability
+and productivity challenges---as described
+in Section~\ref{sect:design-space}---are especially
+relevant and crucial. Clearly, we  must provide a wide range
+of run-time elements such as parallel programming models,
+tools and middleware with performance, scalability, easy integration
+and interoperability.
+This section evaluates our prototype's performance
+and scalability characteristics as well as its ability
+to support various HPC run-time elements.
+
+
+\subsection{KVS Access Patterns (KAP) Tester}
+To examine the performance of \flux's run-time system,
+we developed a tester called KVS Access Patterns (KAP).
+KAP models KVS access patterns through various interactions
+between KVS writers and readers. Writers are called producers;
+readers consumers.
+In essence, KAP allows a configurable number of producer processes
+to write key-value objects into our KVS 
+and a configurable number of consumers to read these
+objects after ensuring the consistent KVS state.
+
+In addition to producer and/or consumer counts,
+KAP provides a range of parameters that can affect performance.
+Among them include the value size of a key-value object
+and the number of objects each producer puts,
+the number of objects each consumer reads and their
+access patterns (through different striding), and
+a synchronization primitive used for consistency---i.e., 
+collective fence or causal consistency. 
+
+Figure~\ref{fig:kap} shows the three main phases of KAP.
+Right after tester processes are launched into a set of nodes
+in which a CMB session had been established,
+they are assigned to ranks such that consecutive rank
+processes are distributed to consecutive nodes.
+Then, the rank processes determine their roles based
+on the command line arguments, and issue a named barrier
+that \flux\ provides to begin to play their roles
+simultaneously.
+
+\begin{wrapfigure}{l}{65mm}
+  \centering
+  \includegraphics[scale=0.50]{kaptester}
+  \caption{Main Phases of KAP Tester}
+  \label{fig:kap}
+\end{wrapfigure}
+
+
+Next, each producer calls the specified number of
+{\tt kvs\_put}s of an object of the specified value size.
+For each call, the producers use unique keys, but
+the values can be configured to be either unique
+or redundant.
+Once this producer phase completes, all of the producers and consumers
+participate in a consistency protocol that uses
+\flux's synchronization primitives such as the collective
+fence---i.e., the {\tt kvs\_fence} function.
+Finally, during the consumer phase, consumers read
+these key-value objects by calling {\tt kvs\_get}s.
+KAP provides options to emulate various read access
+patterns.
+
