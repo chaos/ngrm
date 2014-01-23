@@ -25,14 +25,25 @@ Our prototype consists of a distributed Comms Message Broker (CMB)
 daemon which runs on each node of a comms session, interconnected using
 three persistent overlay network planes:
 \begin{enumerate}
-\item{a PGM {\em publish-subscribe} bus overlay network for events}
+\item{a PGM {\em publish-subscribe} bus for events}
 \item{a TCP {\em dealer-router} (advanced {\em request-response})
-tree overlay for upstream RPCs and reductions
+tree for upstream RPCs and reductions
 similar to those enabled by MrNet~\cite{mrnet}}
-\item{a secondary TCP {\em dealer-router} tree overlay network for
-downstream RPCs.}
+\item{a secondary TCP {\em dealer-router} tree for downstream RPCs.}
 \end{enumerate}
-A typical comms session wire-up is depicted in Figure~\ref{FigCommsWireup}.
+
+\begin{figure}
+\centering
+\includegraphics[scale=0.15]{B_Tree_Comp}
+\caption{A comms session consists of daemons interconnected using
+three persistent overlay network planes:
+a TCP {\em dealer-router} tree for upstream RPCs and reductions (red),
+a secondary TCP {\em dealer-router} tree for downstream RPCs (green), and
+a PGM {\em publish-subscribe} bus for events (blue).}
+\label{fig:commswireup}
+\end{figure}
+
+A typical comms session wire-up is depicted in Figure~\ref{fig:commswireup}.
 Each message plane implements reliable, in-order message delivery, and
 can self-heal when nodes other than the root node fail.
 Security and comprehensive fault-tolerance are not yet implemented,
@@ -54,7 +65,7 @@ heartbeat & A periodic heartbeat event multicast across the comms
 \hline
 live & Each tree node receives heartbeat-synchronized {\em hello}
 	messages from its children.  After a configurable number of missed
-	messages, a liveness event is issued for a dead children.\\
+	messages, a liveness event is issued for a dead child.\\
 \hline
 log & Log messages are reduced and filtered before being placed in
 	a log file at the session root.  A circular debug buffer
@@ -82,10 +93,11 @@ sched & Lightweight job requests are queued in the KVS, assigned
 \hline
 \end{tabular}
 \caption{CMB plugins implement basic building blocks for \flux\ and
-potentially other applications.}
+potentially other applications.  These are the plugins we have prototyped
+thus far, representing a wide range of design maturity.  Each embodies an
+active topic for study and experimentation by the \flux\ team.}
 \label{tab:cmbplugins}
 \end{table}
-
 
 In addition to CMB plugins, external programs can communicate with the CMB
 via a UNIX domain socket.  A {\em flux} utility wraps up two dozen or so
@@ -106,7 +118,7 @@ scheme for returning optional replies to the sender over the same network.
 Requests are routed to the first plugin encountered in the tree that claims
 the tag, or are negatively acknowledged at the root.  This enables plugins
 to be loaded at a variable tree depth to tune its level of distribution
-or conserve node resources for jobs toward the leaves.
+or conserve node resources for application workloads toward the leaves.
 Reductions are simply requests that are aggregated and retransmitted between
 instances of a plugin, traversing upstream.
 

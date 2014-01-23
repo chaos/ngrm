@@ -26,6 +26,8 @@ texs =  Main.tex	 \
 
 bibs = ../bib/project.bib  ../bib/rfc.bib
 
+epsfigs = ../fig/B_Tree_Comp.eps
+
 #epsfigs = fig/fgfs_mpi_perf.eps \
 	  fig/fgfs_mpi_sync_perf.eps \
 	  fig/fgfs_mpi_sync_perf_cons.eps \
