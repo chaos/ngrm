@@ -28,8 +28,10 @@ value for an object, any subsequent accesses will never return previous values.}
 \end{itemize}
 
 We achieve these properties with a simple design based on hash trees
-and content-addressable storage, borrowing ideas from ZFS, git, and 
-Venti (citations).  JSON objects are placed in a content-addressable
+and content-addressable storage, borrowing ideas from
+ZFS~\cite{Bonwick03thezettabyte}, git~\cite{Chacon:2009:PG:1618548}, and
+Venti~\cite{Quinlan:2002:VNA:645371.651321}.
+JSON objects are placed in a content-addressable
 {\em object store}, hashed by their SHA1 digests.
 Hierarchical key names are broken up into path components that reference
 directories.
