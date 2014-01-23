@@ -27,10 +27,10 @@ three persistent overlay network planes:
 \begin{enumerate}
 \item{a PGM {\em publish-subscribe} bus overlay network for events}
 \item{a TCP {\em dealer-router} (advanced {\em request-response})
-tree overlay for upstream RPC's and reductions
+tree overlay for upstream RPCs and reductions
 similar to those enabled by MrNet~\cite{mrnet}}
 \item{a secondary TCP {\em dealer-router} tree overlay network for
-downstream RPC's.}
+downstream RPCs.}
 \end{enumerate}
 A typical comms session wire-up is depicted in Figure~\ref{FigCommsWireup}.
 Each message plane implements reliable, in-order message delivery, and
@@ -41,19 +41,51 @@ but are near-term design topics.
 The CMB allows us to experiment with loosely coupled distributed services
 while reusing the underlying message routing framework.  Various comms
 services have been implemented as CMB plugins.  Plugins currently exist for
-\begin{itemize}
-\item{session heartbeat synchronization}
-\item{liveness monitoring and topology adaptation}
-\item{reductive logging}
-\item{reductive monitoring}
-\item{collective barriers}
-\item{collective group services}
-\item{key-value store}
-\item{remote execution}
-\item{scheduling}
-\item{resource allocation}
-\end{itemize}
+the services listed in Table~\ref{tab:cmbplugins}.
 Each embodies an active topic for study and experimentation by the \flux\ team.
+
+\begin{table}
+\centering
+\begin{tabular}{|l|p{9cm}|}\hline
+\textbf{Plugin} & \textbf{Description} \\
+\hline
+heartbeat & A periodic heartbeat event multicast across the comms
+	session synchronizes background activity to reduce scheduling jitter.\\
+\hline
+live & Each tree node receives heartbeat-synchronized {\em hello}
+	messages from its children.  After a configurable number of missed
+	messages, a liveness event is issued for a dead children.\\
+\hline
+log & Log messages are reduced and filtered before being placed in
+	a log file at the session root.  A circular debug buffer
+	provides log context in response to a fault event.\\
+\hline
+mon & Lua scripts stored in the KVS activate heartbeat-synchronized sampling.
+	Samples are reduced and stored in the KVS.\\
+\hline
+group & \flux\ groups define and manage collection of processes that can
+	participate in collective operations.\\  
+\hline
+barrier & Collective barriers provide synchronization across \flux\ groups. \\
+\hline
+kvs & A distributed key-value store provides a scalable scratchpad
+	for \flux\ and other tools operating within the comms session.\\
+\hline
+wrexec & Remote processes can be launched in bulk, monitored,
+	receive signals, and have standard I/O captured in the KVS.\\
+\hline
+resrc & Resources are enumerated in the KVS and allocated
+	when the scheduler runs a lightweight job. \\
+\hline
+sched & Lightweight job requests are queued in the KVS, assigned
+	resources, and launched. \\
+\hline
+\end{tabular}
+\caption{CMB plugins implement basic building blocks for \flux\ and
+potentially other applications.}
+\label{tab:cmbplugins}
+\end{table}
+
 
 In addition to CMB plugins, external programs can communicate with the CMB
 via a UNIX domain socket.  A {\em flux} utility wraps up two dozen or so
@@ -89,7 +121,9 @@ As our designs and prototypes for basic \flux\ building blocks evolve,
 the CMB evolves to provide necessary services.  For example, the CMB API
 now has both C and Lua bindings and a custom event reactor interface in
 response to the experience of meeting a recent milestone to launch an
-MPI job internally and co-locate a distributed debugger.  We expect
-to continue evolving the CMB prototype for several more months until
+MPI job internally and co-locate a distributed debugger.  Some of the building
+blocks built on CMB services, such as the key-value store plugin described
+in the next section, are independently undergoing design iteration.
+We expect to continue evolving the CMB prototype for several more months until
 our design has reached stability and we build a production-level \flux\ 
 communication framework.
