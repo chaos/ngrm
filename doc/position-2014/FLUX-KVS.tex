@@ -109,28 +109,28 @@ getting KVS objects.  We refer to these classes as
 {\em producer}, {\em synchronization}, and {\em consumer} respectively
 in the results section.
 
-{\em kvs\_put (key, val)}
+{\tt kvs\_put (key, val)}
 writes {\em val} to the object store asynchronously in a write-back
 mode through the tree of slave caches.
 The ({\em key, SHA1}) tuple is cached locally pending commit.
 
-{\em kvs\_commit ()} synchronously flushes ({\em key, SHA1}) tuples
+{\tt kvs\_commit ()} synchronously flushes ({\em key, SHA1}) tuples
 and any still-dirty objects to the master.  On the master, it then
 processes the set of tuples, creating new directory objects as described
 above, finally arriving at a new root SHA1.  It then updates the 
 root reference session-wide with a multicast event.
 Since both new and old objects coexist in the caches, the switch from old
 to new root is atomic.
-{\em kvs\_get\_version ()} and {\em kvs\_wait\_version ()} are available
+{\tt kvs\_get\_version ()} and {\tt kvs\_wait\_version ()} are available
 for causal consistency as described above.
-{\em kvs\_fence ()} commits for a group of processes collectively,
+{\tt kvs\_fence ()} commits for a group of processes collectively,
 through the internal use of a collective barrier
 and slight modification to the commit logic on the master.
 
-{\em kvs\_get (key)} recursively looks up the key starting with the
+{\tt kvs\_get (key)} recursively looks up the key starting with the
 current root reference as described above, faults in any missing objects
 through the tree of slave caches, and returns the terminal object.
-{\em kvs\_watch (key, callback)} is a get variant which registers a
+{\tt kvs\_watch (key, callback)} is a get variant which registers a
 callback to be triggered whenever the value of {\em key} changes.
 It accomplishes this by internally by performing a get on the watched
 value in response to each root update, comparing the new
@@ -148,7 +148,7 @@ fanout.}
 is squashed at the first node in the CMB tree that has the object
 in cache, thus identical values and directories are reduced automatically.}
 \item{Commits are rate-limited.  Updates arriving within a configurable
-period of time (fefault 1 msec) are coalesced into a single update to
+period of time (default 1 msec) are coalesced into a single update to
 avoid excessive intermediate object versions and cache invalidations.}
 \item{The root directory object is sent along with its SHA1 reference when the
 new root is published, due to the high probability of needing to fault it in.}
