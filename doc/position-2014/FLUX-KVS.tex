@@ -96,8 +96,10 @@ above, finally arriving at a new root SHA1.  It then updates the
 root reference session-wide with a multicast event.
 Since both new and old objects coexist in the caches, the switch from old
 to new root is atomic.
-There is also a {\em kvs\_fence} call which commits for a group of
-processes collectively, through the internal use of a collective barrier
+{\em kvs\_get\_version ()} and {\em kvs\_wait\_version ()} are available
+for causal consistency as described above.
+{\em kvs\_fence ()} commits for a group of processes collectively,
+through the internal use of a collective barrier
 and slight modification to the commit logic on the master.
 
 {\em kvs\_get (key)} recursively looks up the key starting with the
@@ -120,11 +122,9 @@ fanout.}
 \item{The act of storing an object redundantly in the object store
 is squashed at the first node in the CMB tree that has the object
 in cache, thus identical values and directories are reduced automatically.}
-\item{Updates arriving in rapid succession (within 1 msec currently) are
-coalesced into a single update to avoid excessive intermediate object
-versions and cache invalidations.}
-\item{A {\em collective fence} operation is provided, inspired by PMIv2,
-which allows updates from many processes to be coalesced into one.}
+\item{Commits are rate-limited.  Updates arriving within a configurable
+period of time (fefault 1 msec) are coalesced into a single update to
+avoid excessive intermediate object versions and cache invalidations.}
 \item{The root directory object is sent along with its SHA1 reference when the
 new root is published, due to the high probability of needing to fault it in.}
 \item{Values amounting to an encoded JSON size less than the size of a base64
