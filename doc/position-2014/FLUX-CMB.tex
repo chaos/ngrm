@@ -43,7 +43,36 @@ a PGM {\em publish-subscribe} bus for events (blue).}
 \label{fig:commswireup}
 \end{figure}
 
-A typical comms session wire-up is depicted in Figure~\ref{fig:commswireup}.
+\begin{figure}
+\begin{minipage}[b]{0.10\linewidth}
+  \centering
+  \fbox{\includegraphics[scale=0.2]{tree-degenerate}}\\
+  degenerate
+\end{minipage}
+\hspace{0.5cm}
+\begin{minipage}[b]{0.80\linewidth}
+  \centering
+  \fbox{\includegraphics[scale=0.15]{tree-flat}}\\ flat\\
+  \vspace{0.5cm}
+  \fbox{\includegraphics[scale=0.3]{tree-binary}}\\ binary\\
+  \vspace{0.5cm}
+  \fbox{\includegraphics[scale=0.2]{tree-trinary}}\\ trinary\\
+  \vspace{0.5cm}
+  \fbox{\includegraphics[scale=0.3]{tree-binomial}}\\ binomial\\
+\end{minipage}
+\caption{The CMB daemon can function in a variety of tree topologies.
+At launch time each daemon is told only its rank, the
+session size, and how to establish a connection with its parent.
+It learns more about the session in-band after this connection is established.
+The tree shape influences performance, and different ones
+exercise software in different and potentially interesting ways.
+The tree topologies depicted above were tested to 100 nodes in
+the course of prototyping (32 nodes shown).}
+\label{fig:treetop}
+\end{figure}
+
+A typical comms session wire-up is depicted in Figure~\ref{fig:commswireup}
+and Figure~\ref{fig:treetop}.
 Each message plane implements reliable, in-order message delivery, and
 can self-heal when nodes other than the root node fail.
 Security and comprehensive fault-tolerance are not yet implemented,
