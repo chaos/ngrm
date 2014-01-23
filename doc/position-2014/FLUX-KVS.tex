@@ -38,10 +38,11 @@ directories.
 A directory is a table of names versus SHA1 object store references,
 which is itself placed in the store.  An external root directory SHA1
 reference points to the root directory.
-For example, if the SHA1 root reference is {\tt 1c002dd...}, and we have
-stored {\tt a.b.c = 42} in the KVS, we would look it up as follows:
+For example, if the SHA1 root reference is {\tt 1c002dde...}, and we have
+stored {\tt a.b.c = 42} in the KVS, we would look it up as follows
+(refer to Figure~\ref{fig:kvsupdate1}):
 \begin{enumerate}
-\item{load root directory from {\tt 1c002dd...}, find {\tt a} is at
+\item{load root directory from {\tt 1c002dde...}, find {\tt a} is at
 {\tt 3f2243ef...}.}
 \item{load {\tt a} from {\tt 3f2243ef...}, find {\tt b} is at
 {\tt 023e9b2d...}.}
@@ -51,7 +52,8 @@ stored {\tt a.b.c = 42} in the KVS, we would look it up as follows:
 \end{enumerate}
 
 An important property of this structure is that any update results
-in a new SHA1 root reference.  For example if we update {\tt a.b.c = 43}, we:
+in a new SHA1 root reference.  Continuing the example
+of Figure~\ref{fig:kvsupdate}, to update {\tt a.b.c = 43}, we:
 \begin{enumerate}
 \item{store 43 to {\tt 62302aff...}.}
 \item{update {\tt b} to associate {\tt c} with {\tt 62302aff...}, and store {\tt b} to {\tt 8fe9b2c3...}.}
@@ -59,6 +61,29 @@ in a new SHA1 root reference.  For example if we update {\tt a.b.c = 43}, we:
 \item{update root to associate {\tt a} with {\tt aacc76b4...}, and store root to {\tt 033fbe92...}.}
 \item{the new root reference is {\tt 033fbe92}.}
 \end{enumerate}
+
+\begin{figure}[ht]
+\centering
+\begin{subfigure}[a.b.c = 42.]{
+  \fbox{\includegraphics[width=.152\linewidth]{kvs_update_1}}
+  \label{fig:kvsupdate1}
+}%
+\end{subfigure}\hfill
+\begin{subfigure}[a.b.c = 43 in progress.]{
+  \fbox{\includegraphics[width=.34\linewidth]{kvs_update_2}}
+  \label{fig:kvsupdate2}
+}%
+\end{subfigure}\hfill
+\begin{subfigure}[a.b.c = 43 committed.]{
+  \fbox{\includegraphics[width=.34\linewidth]{kvs_update_3}}
+  \label{fig:kvsupdate3}
+}%
+\end{subfigure}\hfill
+\caption{Updating a value stored in the \flux\ KVS requires all of its
+parent directories to be updated.  The transaction is completed
+(atomically) when the root reference is updated.}
+\label{fig:kvsupdate}
+\end{figure}
 
 All updates are applied first on the master node at the root of the
 CMB tree, which then publishes a new root reference as a CMB event.
