@@ -15,8 +15,8 @@ networks.
 
 Our current prototype stores JSON values under a hierarchical key space
 with a single master node and multiple caching slaves.  The weak consistency
-of our slave caches has the following properties, using the taxonomy
-presented in {\em Eventually Consistent}\cite{Vogels:2009:EC:1435417.1435432}:
+of our slave caches has the following properties, using Vogels'
+taxonomy~\cite{Vogels:2009:EC:1435417.1435432}:
 \begin{itemize}
 \item{{\em causal consistency}:  If process A communicates with process B
 that it has updated a data item (passing a {\em store version} in that
@@ -65,7 +65,7 @@ in response to this event, so that all new lookups must begin at the
 new root directory.  Objects missing from the slave object cache during
 a lookup are faulted in from their CMB tree parent, recursing up the tree
 until the request can be fulfilled.  Unused slave object cache entries are
-expired after a period of unuse to save memory.
+expired after a period of disuse to save memory.
 
 The CMB event overlay network guarantees ordered delivery, which gives
 us monotonic read consistency for free.  We achieve read-your-writes
@@ -77,17 +77,50 @@ backwards.  We achieve causal consistency by allowing this version number
 to be read after an update, and by providing another call to wait for this
 root version or greater on another node before accessing the value.
 
+The KVS API includes classes of functions for putting, commiting, and
+getting KVS objects.  We refer to these classes as
+{\em producer}, {\em synchronization}, and {\em consumer} respectively
+in the results section.
+
+{\em kvs\_put (key, val)}
+writes {\em val} to the object store asynchronously in a write-back
+mode through the tree of slave caches.
+The ({\em key, SHA1}) tuple is cached locally pending commit.
+
+{\em kvs\_commit ()} synchronously flushes ({\em key, SHA1}) tuples
+and any still-dirty objects to the master.  On the master, it then
+processes the set of tuples, creating new directory objects as described
+above, finally arriving at a new root SHA1.  It then updates the 
+root reference session-wide with a multicast event.
+Since both new and old objects coexist in the caches, the switch from old
+to new root is atomic.
+There is also a {\em kvs\_fence} call which commits for a group of
+processes collectively, through the internal use of a collective barrier
+and slight modification to the commit logic on the master.
+
+{\em kvs\_get (key)} recursively looks up the key starting with the
+current root reference as described above, faults in any missing objects
+through the tree of slave caches, and returns the terminal object.
+{\em kvs\_watch (key, callback)} is a get variant which registers a
+callback to be triggered whenever the value of {\em key} changes.
+It accomplishes this by internally by performing a get on the watched
+value in response to each root update, comparing the new
+and old values, and calling the callback if they are different.
+Due to the internal hash tree organization, a watched directory changes
+if keys under it at any path depth change.
+
 The theoretical performance of our KVS prototype should be influenced by
 the following aspects of the design:
 \begin{itemize}
 \item{Slave caches are arranged hierarchically so that the effect of a
 cache miss across a large number of processes is mitigated by the tree
 fanout.}
-\item{If an object already exists in the object store, storing it again
-costs nothing, thus identical values and directories are reduced automatically.}
+\item{The act of storing an object redundantly in the object store
+is squashed at the first node in the CMB tree that has the object
+in cache, thus identical values and directories are reduced automatically.}
 \item{Updates arriving in rapid succession (within 1 msec currently) are
-coalesced into a single update to avoid intermediate object versions and
-cache invalidations.}
+coalesced into a single update to avoid excessive intermediate object
+versions and cache invalidations.}
 \item{A {\em collective fence} operation is provided, inspired by PMIv2,
 which allows updates from many processes to be coalesced into one.}
 \item{The root directory object is sent along with its SHA1 reference when the
