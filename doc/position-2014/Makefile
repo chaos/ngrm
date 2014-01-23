@@ -28,7 +28,7 @@ texs =  Main.tex	 \
 
 bibs = ../bib/project.bib  ../bib/rfc.bib
 
-epsfigs = ../fig/B_Tree_Comp.eps \
+epsfigs = ../fig/B_Tree_Comp_BW.eps \
 	../fig/kvs_update_1.eps \
 	../fig/kvs_update_2.eps \
 	../fig/kvs_update_3.eps
