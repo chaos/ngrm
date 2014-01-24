@@ -20,10 +20,10 @@ only a subset of the parameter set and of sampling points.
 
 Specifically, we run our KAP tests at 64, 128, 256 and 512
 compute nodes, and always fully populate each node with
-16 processes, each acts as consumer or producer or
+16 processes, each acting as consumer or producer or
 both. We vary the consumer or producer count
 while fixing the other at the total number of cores.
-We also vary the value size of the key-value object
+We also vary the value size 
 from 8 Bytes to 32 Kilobytes in the powers of 8,
 and the key-value object access count of each consumer
 from 1 to the total process count.
@@ -38,5 +38,5 @@ redundancy in values by either configuring producers to generate
 unique or redundant values across them.
 
 For simplicity, we configure the topology of CMB only as 
-the binary tree, and and use \flux's collective fence 
+the binary tree and and use \flux's collective fence 
 as our only mechanism to enforce consistency.

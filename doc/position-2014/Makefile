@@ -20,6 +20,7 @@ texs =  Main.tex	 \
 	Results-Perf.tex \
 	Results-KAP.tex \
 	Results-Setup.tex \
+	Results-Analysis.tex \
 	Results-Case.tex \
 	Related.tex      \
 	Conclusion.tex        

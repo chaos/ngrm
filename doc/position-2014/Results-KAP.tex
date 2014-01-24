@@ -16,6 +16,14 @@ to support various HPC run-time elements.
 \subsection{KVS Access Patterns (KAP) Tester}
 To examine the performance of \flux's run-time system,
 we developed a tester called KVS Access Patterns (KAP).
+\begin{wrapfigure}{l}{70mm}
+  \vspace{-.5cm}
+  \centering
+  \includegraphics[scale=0.45]{kaptester}
+  \caption{Main phases of KAP tester}
+  \vspace{-.5cm}
+  \label{fig:kap}
+\end{wrapfigure}
 KAP models KVS access patterns through various interactions
 between KVS writers and readers. Writers are called producers;
 readers consumers.
@@ -26,12 +34,11 @@ objects after ensuring the consistent KVS state.
 
 In addition to producer and/or consumer counts,
 KAP provides a range of parameters that can affect performance.
-Among them include the value size of a key-value object
-and the number of objects each producer puts,
-the number of objects each consumer reads and their
-access patterns (through different striding), and
-a synchronization primitive used for consistency---i.e., 
-collective fence or causal consistency. 
+Among them include the value size (of key-value objects),
+the number of objects to put,
+the number of objects to read, objects access 
+patterns (through different striding), and
+synchronization primitives used for consistency.
 
 Figure~\ref{fig:kap} shows the three main phases of KAP.
 Right after tester processes are launched into a set of nodes
@@ -39,17 +46,9 @@ in which a CMB session had been established,
 they are assigned to ranks such that consecutive rank
 processes are distributed to consecutive nodes.
 Then, the rank processes determine their roles based
-on the command line arguments, and issue a named barrier
+on the command line arguments and issue a named barrier
 that \flux\ provides to begin to play their roles
 simultaneously.
-
-\begin{wrapfigure}{l}{65mm}
-  \centering
-  \includegraphics[scale=0.50]{kaptester}
-  \caption{Main phases of KAP tester}
-  \label{fig:kap}
-\end{wrapfigure}
-
 
 Next, each producer calls the specified number of
 {\tt kvs\_put}s of an object of the specified value size.
