@@ -77,7 +77,6 @@ $(pdffigs): %.pdf: %.eps
 
 clean:
 	rm -f Main.aux Main.bib Main.dvi Main.log Main.blg Main.bbl Main.cb Main.cb2 Main.out
-	rm -f $(epsfigs)
 	rm -f $(pdffigs)
 	rm -rf Flux-JSSPP.pdf Main.pdf
 
