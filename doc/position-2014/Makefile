@@ -29,10 +29,16 @@ texs =  Main.tex	 \
 
 bibs = ../bib/project.bib  ../bib/rfc.bib
 
-epsfigs = ../fig/B_Tree_Comp.eps \
+epsfigs = ../fig/B_Tree_Comp_BW.eps \
 	../fig/kvs_update_1.eps \
 	../fig/kvs_update_2.eps \
-	../fig/kvs_update_3.eps
+	../fig/kvs_update_3.eps \
+	../fig/tree-binary.eps \
+	../fig/tree-degenerate.eps \
+	../fig/tree-trinary.eps \
+	../fig/tree-binomial.eps \
+	../fig/tree-flat.eps
+
 
 #epsfigs = fig/fgfs_mpi_perf.eps \
 	  fig/fgfs_mpi_sync_perf.eps \
@@ -72,7 +78,6 @@ $(pdffigs): %.pdf: %.eps
 
 clean:
 	rm -f Main.aux Main.bib Main.dvi Main.log Main.blg Main.bbl Main.cb Main.cb2 Main.out
-	rm -f $(epsfigs)
 	rm -f $(pdffigs)
 	rm -rf Flux-JSSPP.pdf Main.pdf
 

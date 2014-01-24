@@ -152,8 +152,11 @@ period of time (default 1 msec) are coalesced into a single update to
 avoid excessive intermediate object versions and cache invalidations.}
 \item{The root directory object is sent along with its SHA1 reference when the
 new root is published, due to the high probability of needing to fault it in.}
-\item{Values amounting to an encoded JSON size less than the size of a base64
-representation of its SHA1 digest are stored directly in their directory.}
+\item{Objects with an encoded JSON size less than or equal to the size
+of their base64 SHA1 digest (42 bytes) are stored by value in the directory
+object.}
+\item{Objects are expired from slave caches after not being accessed for
+a configurable period (default 7.5 seconds).}
 \end{itemize}
 Practical performance results are presented in the results section.
 
