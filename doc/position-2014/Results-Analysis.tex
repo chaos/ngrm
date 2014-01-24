@@ -107,59 +107,72 @@ exceed the 42-byte store-by-reference limit.
 Figure~\ref{fig:cons:dir} shows the maximum latency of {\tt kvs\_get}
 when the target key-value objects are all stored in a single
 KVS directory. The latency is quite high and also increases
-linearly, as we increase the number of consumers. 
+linearly as we increase the number of consumers. 
 It appears that the poor performance and scaling behavior 
-are attributed to KVS replication granularity and 
-the fact that the objects are stored in a single directory.
+can be attributed to the fact that our slave caches store only full
+objects, and the small objects being consumed in the test are all
+placed in a single large directory object.
+This directory object has to be retrieved in full by the slave cache,
+through the tree of CMB tree parents, when the first
+member object is requested by {\tt kvs\_get} and a fault occurs.
 
-When {\tt kvs\_get} cannot be satisfied by the local KVS replica,
-our system ensures that the entire directory where
-the requested object resides is replicated on
-all of the ancestor CMB daemons that are along the direct path 
-to the root. With our access pattern where all objects
-are read collectively by consumers, this means the latency is 
-$log_2(C) \times T_{replicate}(G)$, where C is the consumer count, and G is the 
-total amount of data in the master KVS server.
-Thus, the max latency increase for every doubling of consumers is 
-$\frac{log_2(2C) \times T_{replicate}(2G)}{log_2(C) \times T_{replicate}(G)}$.
+With our access pattern where $G$ objects are read collectively by
+$C$ consumers, and the time to replicate G objects in a single slave cache
+is given by $T(G)$, the maximum consumer latency is given by
+\begin{equation}
+log_2(C) * T(G).
+\end{equation}
+Thus, the max latency increase for every doubling of consumers is
+\begin{equation}
+\frac{log_2(2C) * T(2G)}{log_2(C) * T(G)}.
+\end{equation}
 Generally, this would approach 2, 
 as we continue to increase the number of consumers,
 and our data match with this model.
 
 We can improve this behavior by storing objects across multiple
-directories. With such an organization, the size of replicas 
-would decrease as we go down the CMB tree. This is of course only when
-each consumer reads only a small fraction of data. In another
-word, if each consumer read all of the data in KVS, the latency
-would be same as the single directory case. 
-Figure~\ref{fig:cons:dir} shows the improvements 
-when we spread objects into multiple directories by
-keeping the number of objects per directory constant: 128.
+directories. Slave caches can then operate with a finer granularity,
+and the quantity of data that must be retrieved to satisfy consumer
+requests will tend, depending on how requests stride directories,
+to be proportional to the quantity of data requested.
+This is especially true toward the leaves of the CMB tree where the
+slave caches service a decreasing subset of consumers.
+Figure~\ref{fig:cons:dirs} shows the improvements 
+when we spread objects into directories of 128 objects each.
 Label {\tt mdir-acc-k} refers to the same access pattern as {\tt access-k} 
 except the accessing objects are stored across multiple directories.
 
+\marginpar{\tiny JG: Dong, can \ref{fig:cons:dir} and \ref{fig:cons:dirs}
+be refactored for clarity so the first has access plots and the second
+has mdirs-acc plots?}
 
-For the case where the size of replicas 
-decreases as a function of tree levels, 
-we can model the latency as a geometric series. For example, at tree height being $h$,
-the latency would be 
-$T_{replicate}(G) + T_{replicate}(\frac{G}{2}) + T_{replicate}(\frac{G}{4}) + ... + T_{replicate}(\frac{G}{2^h})$, 
-where each term represents the latency of replication per level.
-This would approach $2T_{replicate}(G)$. Thus, its improvement over the single
-directory scheme is: $\frac{log_2(C) \times T_{replicate}(G)}{2 T_{replicate}(G)}$.
-Roughly speaking, the improvements would be on the order of 
-$\frac{1}{2}log_2(C)$. The improvements would be linearly 
+When objects are spread across directories and the amount of data
+faulted into slave caches decreases as a function of tree levels, 
+the latency can be modeled as a geometric series.
+For example, at tree height $h$, the latency would be 
+\begin{equation}
+T(G) + T(\frac{G}{2}) + T(\frac{G}{4}) + ... + T(\frac{G}{2^h}), 
+\end{equation}
+where each term represents the latency of replication per level,
+and the sum approaches $2T(G)$. Thus, its improvement over the single
+directory scheme is roughly speaking
+\begin{equation}
+\frac{log_2(C) * T(G)}{2 T(G)} = \frac{1}{2}log_2(C).
+\end{equation}
+The improvements would be linearly 
 greater as we increase the scale and our measurements agree with this. 
 
-While significant, we note that a smarter KVS data layout scheme alone
-can still fall short of reaching extreme scale. Our model tells us that the latency
-will grow linearly when $G$ grows with the scale. 
-Say, $G$ doubles every time you double the number of consumers, our geometric series
-model predicts the latency will also double:
-$\frac{2T_{replicate}(2G)}{2T_{replicate(G)}}$ becomes 
-on the order of 2. With the current scheme, the only true way to gain logarithmic
+While these results suggest a promising avenue for reworking the KVS internal
+object layout for performance, we note that such a scheme scheme alone
+is likely to fall short of reaching extreme scale.
+Our model tells us that the latency will grow linearly when $G$ grows
+with the scale.   For example, if $G$ doubles every time the number of
+consumers is doubled, our geometric series model predicts the latency will
+also roughly double according to
+\begin{equation}
+\frac{2T(2G)}{2T(G)}.
+\end{equation}
+With the current scheme, the only way to gain true logarithmic
 scaling is when $G$ stays constant regardless of scale. 
 In a later section, we will discuss some of our plans 
 to exploit the understanding we gain from the evaluation. 
-
-
