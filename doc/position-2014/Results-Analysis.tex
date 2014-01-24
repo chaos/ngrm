@@ -24,9 +24,9 @@ Figure~\ref{fig:prod} shows the maximum latency of the producer phase
 for these cases. Essentially, these lines indicate how well {\tt kvs\_put}
 scales as we increase the number of producers. Each line represents
 different value sizes---e.g., vsize-8 refers to value size being
-8 Bytes. As shown in this graph, the {\tt kvs\_put} simply performs and
-scales well. This matches our expectations because the key-value objects
-are locally cached at {\tt kvs\_put} time and pushed to the
+8 bytes. As shown in this graph, the {\tt kvs\_put} simply performs and
+scales well. This matches our expectations because objects
+are cached in write-back mode at {\tt kvs\_put} time and flushed to the
 server at the next consistency event. 
 
 \ifcomments
@@ -49,7 +49,7 @@ server at the next consistency event.
 \end{figure}
 
 
-Moving onto the synchronization phase, Fig.~\ref{fig:sync} shows 
+Moving to the synchronization phase, Fig.~\ref{fig:sync} shows 
 how well {\tt kvs\_fence} scales during this phase,
 as we increase the number of producers. 
 As with the producer latency,
@@ -70,6 +70,8 @@ up the tree. %%(MENSION R^2 here?)
 
 \marginpar{\tiny DA: I am speculating a bit for redundant case; my job on cab will confirm or deny this.}
 
+\marginpar{\tiny JG: Dong I can't see any difference between 5(a) and 5(b).}
+
 \begin{figure}[ht]
 \centering
 \begin{subfigure}[With single-directory layout]{
@@ -82,7 +84,7 @@ up the tree. %%(MENSION R^2 here?)
   \label{fig:cons:dirs}
 }%
 \end{subfigure}
-\caption{Max latency of consumer phase (value size: 8 Bytes)}
+\caption{Max latency of consumer phase (value size: 8 bytes)}
 \vspace{-.5cm}
 \label{fig:consumer}
 \end{figure}
