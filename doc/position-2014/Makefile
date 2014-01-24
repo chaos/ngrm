@@ -10,7 +10,6 @@ texs =  Main.tex	 \
 	Abstract.tex	 \
 	Introduction.tex \
 	Paradigm.tex     \
-        Design.tex       \
         Conceptual.tex   \
 	FLUX.tex         \
 	FLUX-Overview.tex \
