@@ -18,6 +18,7 @@ in our conceptual model of how the RM must manage, model, schedule,
 and allocate its resources.
 
 \subsection{Design Challenges}
+\label{sect:challenges}
 
 The first requirement in designing \flux\ on this
 new conceptual model is to take a center-wide, or global,
@@ -37,8 +38,8 @@ and their various constraints can then lead to
 more efficient scheduling strategies
 and execution environments. 
 
-We characterize this design challenge as the multidimensional
-scale challenge.  Simply stated, the challenges include
+We characterize this design challenge as the {\em multidimensional
+scale} challenge.  Simply stated, the challenges include
 supporting extreme scalability, addressing noise as concurrency
 increases, and managing a drastically increased amount of
 run-time information that must be monitored, traced, and stored.
@@ -99,8 +100,11 @@ through disjoint and often overlapping software,
 the integration of which can provide a richer, stronger environment
 and may reduce development costs through the ability to leverage
 the \flux\ framework.
+We characterize this design challenge as the {\em productivity challenge}.
 
-Another challenge that we considered during the design included
+We have considered additional challenges that we
+have yet to explore fully. For example,
+another challenge that we considered during the design included
 the risk of higher downtime costs in a more global model.
 If the RM is not designed adequately, a downtime could negatively
 impact the availability of a large portion of the HPC center’s
@@ -108,7 +112,7 @@ resources. Thus our RM must be tolerant of hardware and software
 faults and failures with no single point of failure and must
 also support live software upgrades. This and other challenges,
 including security, integration risk, and backwards compatibility will be 
-\marginpar{\tiny JG: Becky, was something omitted here?}
+will be addressed in future prototypes.
 
 In summary, the global resource view, rich resource model,
 elasticity, and seamless integration of other software 
