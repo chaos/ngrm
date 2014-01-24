@@ -5,26 +5,27 @@ for high performance computing (HPC).
 It is the centerpiece that allows efficient
 execution of HPC applications while providing
 the computing facility with the main means
-to maximize the utilization of its computing
+to maximize the utilization of its diverse array of computing
 resources.
 
 However, several growing trends make even
-best-in-breed RM software systems increasingly ineffective.
-As numbers and types of compute cores of
-HPC systems continue to grow, the key RM challenges associated only
-with today's leadership-class machines are quickly
-permeating to {\em all} computing resources
-such as commodity Linux clusters. Thus the RM must increase
-its purview to resources across the entire
-computing facility to have to provide 
-extreme scalability, low noise, fault tolerance,
-and heterogeneity management while under increasingly
+best-in-breed RM software systems increasingly ineffective
+in dealing with the diversity and size of resources fielded for HPC centers.
+As numbers and types of compute cores
+continue to grow, the key RM challenges traditionally associated only
+with leadership-class machines are now
+relevant to all computing resources, including
+commodity Linux clusters. An effective HPC RM must increase
+its purview to manage resources across the entire
+computing facility and to enable extreme scalability,
+low noise, fault tolerance,
+and heterogeneity management delivered within increasingly
 stricter power bounds.
 
 In fact, a greater interplay among various classes
 of clusters across the entire computing facility already 
 makes the current paradigm of single-cluster scheduling
-largely ineffective. An application running on a compute
+suboptimal. An application running on a compute
 cluster heavily utilizes site-wide shared resources
 such as I/O and visualization clusters.
 Thus, avoiding any significant site-wide bottleneck
@@ -44,23 +45,21 @@ to provide accurate correlations between user-level errors
 and system-level events,
 and to integrate and accelerate a rich set of scalable tools.
 
-In short, without the RM that can effectively
-address all of these challenges, it has become apparent
-that HPC centers will suffer a significant loss
-in both user productivity and efficient uses of its
-next-generation computing resources. 
+In short, an effective RM that effectively
+addresses all of these challenges can net HPC centers
+and their users significant productivity gains.
 
 Our response to this critical need is \flux,
-an RM software framework that can solve the key emerging
+a RM software framework that addresses the key emerging
 challenges in a simple, extensible, distributed
 and autonomous fashion.
 It aims at managing the whole computing facility
 as one common pool of diverse resources.
 Hence, scheduling decisions will be far more efficient
 as well as extendible to accommodate emerging constraints
-such as a strict power bound.
+such as power capping.
 
-Further, \flux\ integrates system monitoring and
+Further, the \flux\ design will integrate system monitoring and
 administration, lightweight virtualization, 
 and distributed tool communication capabilities 
 that are currently provided by disjoint
@@ -72,25 +71,23 @@ and capable system.
 
 In this paper we introduce our concept of the \flux\ next-generation
 resource management framework
-and focus on two main elements at the core that we have prototyped: a
+and focus on two core elements that we have prototyped: a
 communication framework including the Comms Message Broker (CMB), and
 workload
 run-time tools for efficient execution of transactions within a job. In the
 latter category we have developed a distributed Key Value Store (KVS) and
 scalable process management services, as well as other components and a
 model
-using the concept of lightweight jobs (LWJ). Having built prototypes of the
-basic building blocks of the \flux\ infrastructure, we are testing its
-ability to
-support scalable run-time code development tools.  We report initial
-findings from a study of a test program that simulates
-access patternsin order to test part of the \flux\ framework. The results
-support and will continue to guide our design choices
-as we build additional parts of our next-generation RM infrastructure.
-\flux\ will enable developers at the operating system and run-time levels
-to leverage the RM data stores and services in unprecedented ways, and it
-will
-position HPC centers to cope with diverse, extreme-scale resources.
+using the concept of lightweight jobs (LWJ).
+Here we present a detailed description of our CMB and KVS prototypes
+as well as some preliminary results and a performance model that
+demonstrates scaling properties of these core \flux\ components.
+The results have supported and will continue to guide our design
+choices as we build additional parts of our RM infrastructure.
+\flux\ will enable developers at the operating system and
+run-time levels to leverage the RM data stores and services in
+unprecedented ways, and it will position HPC centers to cope
+with diverse, extreme-scale resources.
 
 \ifcomments
 \marginpar{\tiny DA: Please check your author information.}
