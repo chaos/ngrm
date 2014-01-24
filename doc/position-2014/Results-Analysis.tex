@@ -4,7 +4,7 @@ Of tens of thousands of our sampling runs, we find that the fully populated
 cases---i.e. both producer and consumer counts become equal to the total
 process count---are most revealing. In particular, we carefully analyze 
 the maximum latency of each of the main phases of KAP for these cases 
-because this metric represents the critial path of the performance of
+because this metric represents the critical path of the performance of
 many HPC services. For example, distributed 
 HPC software would use KVS operations in a coordinated fashion to exchange 
 connection information among processes during its bootstrapping 
@@ -61,11 +61,11 @@ been put in. Figure~\ref{fig:sync:redund}
 shows the maximum latency of the synchronization phase
 when redundant values are used. It scales
 far better than Fig.~\ref{fig:sync:noredund}
-where there is zero redudancy in values. 
+where there is zero redundancy in values. 
 We theorize that in the former case, fence performs linearly with respect to the number of
 producers because these unique values are being {\em concatenated} while
 being sent up the tree. It performs logarithmically for the latter case
-because redundent values are being {\em reduced} while being sent 
+because redundant values are being {\em reduced} while being sent 
 up the tree. %%(MENSION R^2 here?)
 
 \marginpar{\tiny DA: I am speculating a bit for redundant case; my job on cab will confirm or deny this.}
@@ -105,7 +105,7 @@ It appears that the poor performance and scaling behavior
 are attributed to KVS replication granularity and 
 the fact that the objects are stored in a single directory.
 
-When {\tt kvs\_get} cannot be satified by the local KVS replica,
+When {\tt kvs\_get} cannot be satisfied by the local KVS replica,
 our system ensures that the entire directory where
 the requested object resides is replicated on
 all of the ancestor CMB daemons that are along the direct path 
