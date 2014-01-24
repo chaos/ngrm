@@ -34,15 +34,17 @@ similar to those enabled by MrNet~\cite{mrnet}}
 
 \begin{figure}
 \centering
-\includegraphics[scale=0.15]{B_Tree_Comp_BW}
+\includegraphics[trim=5.0cm 8.0cm 5.0cm 8.0cm,scale=0.5]{B_Tree_4Layer_BW}
 \caption{A comms session consists of daemons interconnected using
 three persistent overlay network planes:
-a TCP {\em dealer-router} tree for upstream RPCs and reductions (red),
-a secondary TCP {\em dealer-router} tree for downstream RPCs (green), and
-a PGM {\em publish-subscribe} bus for events (blue).
+a TCP {\em dealer-router} tree for upstream RPCs and reductions,
+a TCP {\em dealer-router} tree for downstream RPCs, and
+a PGM {\em publish-subscribe} bus for events.
 Although a binary tree is pictured, the RPC planes can be launched in
-any tree shape for testing or to tune performance.  Flat, degenerate,
-{\em k}-ary for several values of {\em k}, and binomial have been tested.}
+any tree shape for testing or to tune performance.
+%Flat, degenerate, {\em k}-ary for several values of {\em k}, and
+%binomial have been tested.
+}
 \label{fig:commswireup}
 \end{figure}
 
