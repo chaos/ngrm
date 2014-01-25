@@ -34,27 +34,27 @@ resources together.
 Meanwhile, greater difficulties in code development
 on larger systems have begun to impose far more complex
 requirements on the RM. For example, without adequate
-RM support, debugging, tuning, testing and verification
-of the applications have become too difficult
+RM support, debugging, tuning, testing, and verification
+of applications have become increasingly difficult
 and time-consuming for end-users.
-The next-generation code development environments
+Next-generation code development environments
 require the RM to provide effective mechanisms
-to support the reproducible results of program execution,
-to provide accurate correlations between user-level errors
+to ease this user burden with features that support the reproducible results of program execution,
+provide accurate correlations between user-level errors
 and system-level events,
-and to integrate and accelerate a rich set of scalable tools.
+and facilitate integration and accelerate development of a rich set of scalable tools.
 
-In short, an effective RM that effectively
+In short, a RM that effectively
 addresses all of these challenges can net HPC centers
 and their users significant productivity gains.
 Our response to this critical need is \flux,
 a RM software framework that addresses the key emerging
-challenges in a simple, extensible, distributed
+challenges in a simple, extensible, distributed,
 and autonomous fashion.
 It aims at managing the whole computing facility
 as one common pool of diverse resources.
 Hence, scheduling decisions will be far more efficient
-as well as extendible to accommodate emerging constraints
+as well as flexible to accommodate emerging constraints
 such as power capping.
 Further, the \flux\ design will integrate system monitoring and
 administration, lightweight virtualization, 
@@ -76,12 +76,12 @@ latter category we have developed a distributed Key Value Store (KVS) and
 scalable process management services, as well as other components and a
 model
 using the concept of lightweight jobs (LWJ).
-Here we present a detailed description of our CMB and KVS prototypes
+We present a detailed description of our CMB and KVS prototypes
 as well as some preliminary results and a performance model that
 demonstrates scaling properties of these core \flux\ components.
-The results have supported and will continue to guide our design
+The results presented in this paper have supported and will continue to guide our design
 choices as we build additional parts of our RM infrastructure.
-\flux\ will enable developers at the operating system and
+It is our hope that \flux\ will enable developers at the operating system and
 run-time levels to leverage the RM data stores and services in
-unprecedented ways, and it will position HPC centers to cope
-with diverse, extreme-scale resources.
+unprecedented ways, and that it will position HPC centers to cope
+with diverse, extreme-scale resources..
