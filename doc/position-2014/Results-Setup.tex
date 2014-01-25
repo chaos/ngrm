@@ -1,5 +1,6 @@
 \subsection{Experimental Setup}
-We ran all of our experiments on two Linux clusters installed at LLNL,
+We ran all of our experiments on two Linux clusters installed at 
+Lawrence Livermore National Laboratory,
 named Zin and Cab.
 Each compute node of these clusters has 2 sockets and 32 GB of RAM.
 Each socket is populated with an 8-core 2.6 GHz Intel
@@ -8,8 +9,8 @@ Xeon E5-2670 processor, resulting in 16 cores per node.
 %Cab is a smaller system with the same node type,
 %consisting of 1,296 compute nodes with a total of 20,736 cores.
 Nodes are connected by a Qlogic Infiniband QDR interconnect.
-The largest allocation we obtained for these tests is
-512 nodes (8192 cores).
+The largest allocation our batch system allows for our tests is
+512 nodes (8,192 cores).
 
 We ran KAP with varying arguments to its parameters
 in batch mode and collect various 
@@ -24,7 +25,7 @@ compute nodes, and always fully populated each node with
 both. We varied the consumer or producer count
 while fixing the other at the total number of cores.
 We also tested the value size at
-8, 32, 128, 512, 2048, 8192, and 32768 bytes,
+8, 32, 128, 512, 2048, 8192, and 32,768 bytes,
 and the key-value object access count of each consumer
 from 1 to the total process count.
 

@@ -114,12 +114,12 @@ can be attributed to the fact that our slave caches store only full
 objects, and the small objects being consumed in the test are all
 placed in a single large directory object.
 This directory object has to be retrieved in full by the slave cache,
-through the tree of CMB tree parents, when the first
+through the tree of CMB-tree parents, when the first
 member object is requested by {\tt kvs\_get} and a fault occurs.
 
 With our access pattern where $G$ objects are read collectively by
 $C$ consumers, and the time to replicate G objects in a single slave cache
-is given by $T(G)$, the maximum consumer latency is given by
+from its CMB-tree parent is given by $T(G)$, the maximum consumer latency is given by
 \begin{equation}
 log_2(C) * T(G).
 \end{equation}
@@ -153,11 +153,11 @@ faulted into slave caches decreases as a function of tree levels,
 the latency can be modeled as a geometric series.
 For example, at tree height $h$, the latency would be 
 \begin{equation}
-T(G) + T(\frac{G}{2}) + T(\frac{G}{4}) + ... + T(\frac{G}{2^h}), 
+T(G) + T(\frac{G}{2}) + T(\frac{G}{4}) + ... + T(\frac{G}{2^h}),
 \end{equation}
 where each term represents the latency of replication per level,
 and the sum approaches $2T(G)$. Thus, its improvement over the single
-directory scheme is roughly speaking
+directory scheme is on the order of 
 \begin{equation}
 \frac{log_2(C) * T(G)}{2 T(G)} = \frac{1}{2}log_2(C).
 \end{equation}
@@ -177,4 +177,4 @@ also roughly double according to
 With the current scheme, the only way to gain true logarithmic
 scaling is when $G$ stays constant regardless of scale. 
 In a later section, we will discuss some of our plans 
-to exploit the understanding we gain from the evaluation. 
+to exploit the understanding we gained from the evaluation. 
