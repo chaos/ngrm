@@ -121,11 +121,11 @@ With our access pattern where $G$ objects are read collectively by
 $C$ consumers, and the time to replicate G objects in a single slave cache
 from its CMB-tree parent is given by $T(G)$, the maximum consumer latency is given by
 \begin{equation}
-log_2(C) * T(G).
+log_2(C) \times T(G).
 \end{equation}
 Thus, the max latency increase for every doubling of consumers is
 \begin{equation}
-\frac{log_2(2C) * T(2G)}{log_2(C) * T(G)}.
+\frac{log_2(2C) \times T(2G)}{log_2(C) \times T(G)}.
 \end{equation}
 Generally, this would approach 2, 
 as we continue to increase the number of consumers,
@@ -159,7 +159,7 @@ where each term represents the latency of replication per level,
 and the sum approaches $2T(G)$. Thus, its improvement over the single
 directory scheme is on the order of 
 \begin{equation}
-\frac{log_2(C) * T(G)}{2 T(G)} = \frac{1}{2}log_2(C).
+\frac{log_2(C) \times T(G)}{2 T(G)} = \frac{1}{2}log_2(C).
 \end{equation}
 The improvements would be linearly 
 greater as we increase the scale and our measurements agree with this. 
