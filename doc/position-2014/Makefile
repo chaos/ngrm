@@ -22,6 +22,7 @@ texs =  Main.tex	 \
 	Results-Analysis.tex \
 	Results-Case.tex \
 	Related.tex      \
+	Discussions.tex \
 	Conclusion.tex        
 
 #txts = fig/mpa-code-frag.txt fig/Challenges.pdf
