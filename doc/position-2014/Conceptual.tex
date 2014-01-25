@@ -135,22 +135,3 @@ for distributed programs including many MPI implementations
 as well as run-time tools.  This provides tightly integrated support
 for the development and use of scalable code development run-time tools
 and research, which can have a large impact on user productivity.
-
-\vspace{1ex}
-\noindent{\em Lightweight Virtualization Model:} The lightweight 
-virtualization model is our response to the challenges posed by
-higher downtime costs, separation-of-concerns
-and security. Full-fledged virtualization 
-techniques like Xen and Kernel-based Virtual Machine (KVM) 
-have many advantages for these design challenges, but 
-that approach has proven to be ineffective for HPC 
-due in large part its high overhead~\cite{VirtHPC}. 
-Instead, our virtualization strategy exploits OS-enforced
-resource management and isolation mechanisms 
-to launch applications in containers with virtually 
-no impact on performance~\cite{ContainerVirt}. Within a container, 
-private file system namespaces allow the system 
-and applications to have divergent file system views, 
-and to access file systems with different constraints.
-\marginpar{\tiny BS: Jim and Mark:  Do we need this explained
-here? Is this the right place and explanation?}

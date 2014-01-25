@@ -31,8 +31,8 @@ server at the next consistency event.
 
 \ifcomments
 \marginpar{\tiny DA: I will add data from 8K if I get it on Zin in time.}
-
 \marginpar{\tiny JG: The vsize-32768 requires some explanation}
+\fi
 
 \begin{figure}[ht]
 \centering
@@ -70,10 +70,11 @@ being sent up the tree. It performs logarithmically for the latter case
 because redundant values are being {\em reduced} while being sent 
 up the tree. %%(MENSION R^2 here?)
 
+\ifcomments
 \marginpar{\tiny DA: I am speculating a bit for redundant case; my job on cab will confirm or deny this.}
-
 \marginpar{\tiny JG: Dong I can't see any difference between
 \ref{fig:sync:redund} and \ref{fig:sync:noredund}.}
+\fi
 
 \begin{figure}[ht]
 \centering
@@ -142,10 +143,11 @@ when we spread objects into directories of 128 objects each.
 Label {\tt mdir-acc-k} refers to the same access pattern as {\tt access-k} 
 except the accessing objects are stored across multiple directories.
 
+\ifcomments
 \marginpar{\tiny JG: Dong, can \ref{fig:cons:dir} and \ref{fig:cons:dirs}
 be refactored for clarity so the first has access plots and the second
 has mdirs-acc plots?}
-
+\fi
 When objects are spread across directories and the amount of data
 faulted into slave caches decreases as a function of tree levels, 
 the latency can be modeled as a geometric series.
