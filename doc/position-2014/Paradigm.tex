@@ -2,16 +2,19 @@
 The vision of \flux\ is to create a scalable RM
 software system that significantly improves
 operational efficiency and user productivity
-for the that span the entire
+for resources spanning an entire
 computing facility.
-Our challenges include having to provide extreme
-scalability, low noise, fault tolerance, 
-and heterogeneity management while under a strict power budget.
-Worse, the workloads themselves are also becoming
+Our challenges include providing extreme
+scalability, low noise, and fault tolerance while
+managing arbitrarily complex aggregations of generic resources
+which may be subject to multiple dimensions of constraints
+such as power budgets, IO throughput bounds, and other site-specific
+policy.
+Worse, the workloads themselves continue to become
 increasingly diverse, dynamic, and large.
 Thus, fully realizing our vision through
 these challenges requires a major shift
-in our conceptual model of how the RM must manage, model, schedule, 
+in the conceptual model of how the RM must manage, model, schedule,
 and allocate its resources.
 
 \subsection{Design Challenges}
@@ -31,7 +34,7 @@ the entire computing facility.
 The RM must manage the resources at the center
 as one common pool of resources, and the ability
 to see a broader spectrum of resources
-and their various constraints can then lead to
+and their various constraints can then enable
 more efficient scheduling strategies
 and execution environments. 
 
@@ -114,5 +117,5 @@ will be addressed in future prototypes.
 In summary, the global resource view, rich resource model,
 elasticity, and seamless integration of other software 
 represent the fundamental characteristics of the new
- resource management paradigm.  
+resource management paradigm.  
 
