@@ -13,6 +13,8 @@ texs =  Main.tex	 \
         Conceptual.tex   \
 	FLUX.tex         \
 	FLUX-Overview.tex \
+	FLUX-CMB.tex \
+	FLUX-LWJ.tex \
 	FLUX-KVS.tex     \
 	Results-Perf.tex \
 	Results-KAP.tex \

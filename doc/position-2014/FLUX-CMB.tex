@@ -1,6 +1,7 @@
 \subsection{Communication Message Broker}
 
-A communication framework supports the \flux\ hierarchical job model
+
+A communication framework supports our hierarchical job model
 by establishing a {\em comms session} to contain each \flux\ instance
 and provide a foundation for the distributed components upon which
 \flux\ will be built.
@@ -8,6 +9,15 @@ This framework enables secure, scalable communication
 within a comms session, limits communication between sessions,
 and allows new comms sessions to be created, resized, destroyed,
 and monitored by existing ones in a parent-child relationship.
+
+\begin{figure}
+\vspace{-.5cm}
+\centering
+\includegraphics[trim=5.0cm 8.0cm 5.0cm 8.0cm,scale=0.40]{B_Tree_4Layer_BW}
+\caption{A comms session} 
+\vspace{-.5cm}
+\label{fig:commswireup}
+\end{figure}
 
 We have built a primitive prototype of the \flux\ communications framework
 using \zMQ~\cite{ZMQGuide} which we can launch within a
@@ -21,51 +31,43 @@ messaging patterns including {\em request-reply}, {\em publish-subscribe},
 and {\em push-pull}.
 \zMQ\ can be used to build applications or custom message brokers.
 
-Our prototype consists of a distributed Comms Message Broker (CMB)
-daemon which runs on each node of a comms session, interconnected using
-three persistent overlay network planes:
-\begin{enumerate}
-\item{a PGM {\em publish-subscribe} bus for events}
-\item{a TCP {\em dealer-router} (advanced {\em request-response})
-tree for upstream RPCs and reductions
-similar to those enabled by MrNet~\cite{mrnet}}
-\item{a secondary TCP {\em dealer-router} tree for downstream RPCs.}
-\end{enumerate}
 
-\begin{figure}
-\centering
-\includegraphics[trim=5.0cm 8.0cm 5.0cm 8.0cm,scale=0.5]{B_Tree_4Layer_BW}
-\caption{A comms session consists of daemons interconnected using
+Our prototype consists of a distributed Comms Message Broker (CMB)
+daemon that runs on each node of a comms session, interconnected using
 three persistent overlay network planes:
-a TCP {\em dealer-router} tree for upstream RPCs and reductions,
-a TCP {\em dealer-router} tree for downstream RPCs, and
-a PGM {\em publish-subscribe} bus for events.
-Although a binary tree is pictured, the RPC planes can be launched in
-any tree shape for testing or to tune performance.
-%Flat, degenerate, {\em k}-ary for several values of {\em k}, and
+a PGM {\em publish-subscribe} bus for events; 
+a TCP {\em dealer-router} (advanced {\em request-response})
+tree for upstream RPCs and reductions
+similar to those enabled by MRNet~\cite{mrnet}; and
+a secondary TCP {\em dealer-router} tree for downstream RPCs.
+
+%consists of daemons interconnected using
+%three persistent overlay network planes:
+%a TCP {\em dealer-router} tree for upstream RPCs and reductions,
+%a TCP {\em dealer-router} tree for downstream RPCs, and
+%a PGM {\em publish-subscribe} bus for events.
+%Although a binary tree is pictured, the RPC planes can be launched in
+%any tree shape for testing or to tune performance.
+%%Flat, degenerate, {\em k}-ary for several values of {\em k}, and
 %binomial have been tested.
-}
-\label{fig:commswireup}
-\end{figure}
+%}
 
 The comms session wire-up is depicted in Figure~\ref{fig:commswireup}.
 Each message plane implements reliable, in-order message delivery, and
 can self-heal when nodes other than the root node fail.
+Although a binary tree is pictured, the RPC planes can be launched in
+any tree shape for testing or to tune performance.
 Security and comprehensive fault-tolerance are not yet implemented,
 but are near-term design topics.
 
-The CMB allows us to experiment with loosely coupled distributed services
-while reusing the underlying message routing framework.  Various comms
-services have been implemented as CMB plugins.  Plugins currently exist for
-the services listed in Table~\ref{tab:cmbplugins}.
-Each embodies an active topic for study and experimentation by the \flux\ team.
-
 \begin{table}
 \centering
-\caption{CMB plugins implement basic building blocks for \flux\ and
-potentially other applications.  These are the plugins we have prototyped
-thus far, representing a wide range of design maturity.  Each embodies an
-active topic for study and experimentation by the \flux\ team.}
+\vspace{-.5cm}
+\caption{Prototyped CMB plugins}
+% implement basic building blocks for \flux\ and
+%potentially other applications.  These are the plugins we have prototyped
+%thus far, representing a wide range of design maturity.  Each embodies an
+%active topic for study and experimentation by the \flux\ team.}
 \begin{tabular}{|l|p{9cm}|}\hline
 \textbf{Plugin} & \textbf{Description} \\
 \hline
@@ -103,6 +105,12 @@ sched & Lightweight job requests are queued in the KVS, assigned
 \end{tabular}
 \label{tab:cmbplugins}
 \end{table}
+
+The CMB allows us to experiment with loosely coupled distributed services
+while reusing the underlying message routing framework.  Various comms
+services have been implemented as CMB plugins.  Plugins currently exist for
+the services listed in Table~\ref{tab:cmbplugins}.
+Each embodies an active topic for study and experimentation by the \flux\ team.
 
 In addition to CMB plugins, external programs can communicate with the CMB
 via a UNIX domain socket.  A {\tt flux} utility wraps up two dozen or so

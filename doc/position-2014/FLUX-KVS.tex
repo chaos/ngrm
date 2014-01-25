@@ -63,6 +63,7 @@ of Figure~\ref{fig:kvsupdate}, to update {\tt a.b.c = 43}, we:
 \end{enumerate}
 
 \begin{figure}[ht]
+\vspace{-.5cm}
 \centering
 \begin{subfigure}[a.b.c = 42.]{
   \fbox{\includegraphics[width=.152\linewidth]{kvs_update_1}}
@@ -79,9 +80,11 @@ of Figure~\ref{fig:kvsupdate}, to update {\tt a.b.c = 43}, we:
   \label{fig:kvsupdate3}
 }%
 \end{subfigure}\hfill
-\caption{Updating a value stored in the \flux\ KVS requires all of its
-parent directories to be updated.  The transaction is completed
-(atomically) when the root reference is updated.}
+\caption{KVS value update scheme}
+\vspace{-.5cm}
+%\caption{Updating a value stored in the \flux\ KVS requires all of its
+%parent directories to be updated.  The transaction is completed
+%(atomically) when the root reference is updated.}
 \label{fig:kvsupdate}
 \end{figure}
 
@@ -90,7 +93,7 @@ CMB tree, which then publishes a new root reference as a CMB event.
 Slaves keep consistent with the master by switching their root reference
 in response to this event, so that all new lookups must begin at the
 new root directory.  Objects missing from the slave object cache during
-a lookup are faulted in from their CMB tree parent, recursing up the tree
+a lookup are faulted in from their CMB-tree parent, recursing up the tree
 until the request can be fulfilled.  Unused slave object cache entries are
 expired after a period of disuse to save memory.
 
@@ -105,10 +108,10 @@ to be read after an update, and by providing another call to wait for this
 root version or greater on another node before accessing the value.
 
 The KVS API includes classes of functions for putting, commiting, and
-getting KVS objects.  We refer to these classes as
-{\em producer}, {\em synchronization}, and {\em consumer} respectively
-in the results section.
-
+getting KVS objects.  
+%We refer to these classes as
+%{\em producer}, {\em synchronization}, and {\em consumer} respectively
+%in the results section.
 {\tt kvs\_put (key, val)}
 writes {\em val} to the object store asynchronously in a write-back
 mode through the tree of slave caches.
@@ -139,30 +142,27 @@ Due to the internal hash tree organization, a watched directory changes
 if keys under it at any path depth change.
 
 The theoretical performance of our KVS prototype should be influenced by
-the following aspects of the design:
-\begin{itemize}
-\item{Slave caches are arranged hierarchically so that the effect of a
+the several aspects of the design. First,  
+slave caches are arranged hierarchically so that the effect of a
 cache miss across a large number of processes is mitigated by the tree
-fanout.}
-\item{The act of storing an object redundantly in the object store
+fanout. Second, the act of storing an object redundantly in the object store
 is squashed at the first node in the CMB tree that has the object
-in cache, thus identical values and directories are reduced automatically.}
-\item{Commits are rate-limited.  Updates arriving within a configurable
+in cache, thus identical values and directories are reduced automatically.
+Third, commits are rate-limited.  Updates arriving within a configurable
 period of time (default 1 msec) are coalesced into a single update to
-avoid excessive intermediate object versions and cache invalidations.}
-\item{The root directory object is sent along with its SHA1 reference when the
-new root is published, due to the high probability of needing to fault it in.}
-\item{Objects with an encoded JSON size less than or equal to the size
+avoid excessive intermediate object versions and cache invalidations.
+Fourth, the root directory object is sent along with its SHA1 reference when the
+new root is published, due to the high probability of needing to fault it in.
+Fifth, objects with an encoded JSON size less than or equal to the size
 of their base64 SHA1 digest (42 bytes) are stored by value in the directory
-object.}
-\item{Objects are expired from slave caches after not being accessed for
-a configurable period (default 7.5 seconds).}
-\end{itemize}
-Practical performance results are presented in the results section.
+object. Finally, objects are expired from slave caches after not being accessed for
+a configurable period (default 7.5 seconds).
 
-Work on the KVS prototype is ongoing, and our prototype still lacks some
-important features that will be needed in the production version,
-including the ability to make its contents persistent beyond the
-life of a comms session,
-tolerance of a fault of the KVS master,
-and sharding.
+%Practical performance results are presented in the results section.
+%
+%Work on the KVS prototype is ongoing, and our prototype still lacks some
+%important features that will be needed in the production version,
+%including the ability to make its contents persistent beyond the
+%life of a comms session,
+%tolerance of a fault of the KVS master,
+%and sharding.
