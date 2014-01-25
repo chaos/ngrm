@@ -1,19 +1,24 @@
 \section{Related Work}
 
-MrNet~\cite{mrnet} implements a tree-based overlay network
-that parallel debugging tools have used to great advantage.
-The work of the MrNet team influenced our early discussions of the
-\flux\ communications framework.  A key difference is that the \flux\ CMB
-prototype is persistent and can service the needs of multiple tools
-concurrently.
+Wang et al propose using a distributed key-value store
+as the basis for HPC tools and services in order to encapsulate
+distributed complexity in the KVS, thereby simplifying the
+tools and services~\cite{Wang:2013:USE:2503210.2503239}.
+They further evaluate replacing the centralized controller in
+Slurm~\cite{Jette02slurm} with a distributed controller~\cite{Slurmpp}
+built on the ZHT distributed hash table~\cite{Li:2013:ZLR:2510661.2511401}.
 
-Redis~\cite{Redis} is a key value store frequently employed in internet
-services.  Its simplicity and power are fascinating
-and our experience experimenting with it influenced our thoughts on
-what a key value store should and shouldn't be.  At the time of
-this writing, Redis cluster is a work in progress.  To explore
-Redis scalability we combined it with twemproxy~\cite{Twemproxy} and
-tried various schemes for sharding and replicating the key space.
-Ultimately we decided that our requirements for security and fault
-tolerance would be better served if the \flux\ distributed KVS could
-utilize the CMB persistent overlay networks and embarked on our own design.
+Redis~\cite{Redis} and twemproxy~\cite{Twemproxy}
+were employed in early \flux\ KVS investigations.
+Redis cluster~\cite{RedisClusterTut,RedisClusterSpec} is now available.
+Redis cluster nodes establish TCP connections in a full mesh, and implement
+sharding, re-sharding, replication, and failover.
+There is no proxy; clients connect directly to the server
+for a particular shard.  Redis-cluster's asynchoronous replication
+results in the possibility of losing writes that occur during failover.
+
+Arnold and Miller's MrNet~\cite{mrnet} is a reusable tree-based overlay
+network (TBON) designed to be embedded in large scale HPC tools such as
+STAT~\cite{STAT}.  They have explored
+{\em state compensation}~\cite{conf/ipps/ArnoldM10}
+as a mechanism for fault tolerance in TBONs that perform data aggregation.
