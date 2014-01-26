@@ -1,4 +1,4 @@
-\section{A New Conceptual Model for HPC Resource Management}
+\section{A New Paradigm for HPC Resource Management}
 The vision of \flux\ is to create a scalable RM
 software system that significantly improves
 operational efficiency and user productivity
@@ -13,15 +13,15 @@ policy.
 Worse, the workloads themselves continue to become
 increasingly diverse, dynamic, and large.
 Thus, fully realizing our vision through
-these challenges requires a major shift
-in the conceptual model of how the RM must manage, model, schedule,
+these challenges requires a new paradigm as to 
+of how the RM must manage, model, schedule,
 and allocate its resources.
 
 \subsection{Design Challenges}
 \label{sect:challenges}
 
-The first requirement in designing \flux\ based on this
-new conceptual model is to take a center-wide, or global,
+The first requirement in designing \flux\ to 
+embody the new paradigm is to take a center-wide, or global,
 resource view.  The RM must be capable of
 imposing highly complex resource bounds
 to guarantee the highest operational efficiency
@@ -43,7 +43,7 @@ scale} challenge.  Simply stated, the challenges include
 supporting extreme scalability, addressing noise as concurrency
 increases, and managing a drastically increased amount of
 run-time information that must be monitored, traced, and stored.
-Our requirement is that our RM shall handle increased scale in
+The requirement is that our RM shall handle increased scale in
 numbers of resources as well as jobs and other dimensions of RM data.
 
 A second requirement for \flux\ is to include a rich resource model.
@@ -85,7 +85,7 @@ performance limiters within a single application. Our applications
 and their programming paradigm are becoming increasingly dynamic with
 different resource requirements at different phases.
 
-Finally, the new conceptual model must meet the greater difficulties
+Finally, the new paradigm must meet the greater difficulties
 in code development by facilitating the integration 
 of other key relevant software that can ease the difficulties. 
 These software components should include system monitoring
@@ -112,10 +112,10 @@ resources. Thus our RM must be tolerant of hardware and software
 faults and failures with no single point of failure and must
 also support live software upgrades. This and other challenges,
 including security, integration risk, and backwards compatibility will be 
-will be addressed in future prototypes.
+will be addressed in our future work.
 
-In summary, the global resource view, rich resource model,
-elasticity, and seamless integration of other software 
-represent the fundamental characteristics of the new
-resource management paradigm.  
-
+%In summary, the global resource view, rich resource model,
+%elasticity, and seamless integration of other software 
+%represent the fundamental characteristics of the new
+%resource management paradigm.  
+%

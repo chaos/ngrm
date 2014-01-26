@@ -1,6 +1,7 @@
 \subsection{Conceptual Software Design}
-We describe some of the primary elements of this new
-conceptual model while addressing
+\label{models}
+We describe some of the primary conceptual models that
+embody the new paradigm while addressing
 the multitude of design challenges described above.
 These models form the basis for the software design
 of \flux.
@@ -23,7 +24,7 @@ providing a straightforward path to address
 the backward compatibility challenge.
 
 \vspace{1ex}
-\noindent{\em Job Hierarchy Model:} To scale the new conceptual model
+\noindent{\em Job Hierarchy Model:} To scale the new paradigm 
 in the scaling limit of the entire computing facility, 
 we must avoid a centralized approach: the new paradigm 
 requires a hierarchical management scheme with a well-balanced, 
@@ -54,12 +55,11 @@ allocation, and it is up to the parent to grant the request.}
 \end{enumerate}
 
 In general, these rules enforce the first principle 
-of the new model: imposing highly complex resource bounds 
+of the new paradigm: imposing highly complex resource bounds 
 to guarantee the highest operational efficiency 
 at any level across the computing facility, while enabling 
 most efficient execution and scheduling of the workloads 
 within these bounds. 
-
 At the same time, this model is the most fundamental 
 design concept, which forms the basis to address 
 many of the design challenges including 
@@ -84,8 +84,7 @@ Our generalized resource model also includes a unified
 resource specification and description language. 
 Speaking the same resource description language 
 for request specification provides transparency and 
-fine-grained expressibility. Our generalized resource 
-model addresses the {\em diverse workload} challenge.
+fine-grained expressibility. 
 
 More specifically, the unified language approach 
 allows users to express their resource requests 
@@ -94,6 +93,7 @@ expressions instead of hard amounts to allow requests
 to be fulfilled from several equivalent resource types. 
 This makes the scheduling granularity 
 of jobs finer and more malleable.
+This model addresses the {\em diverse workload} challenge.
 
 \vspace{1ex}
 \noindent{\em Resource Allocation Elasticity Model:} As our 
@@ -128,7 +128,6 @@ through this communication channel. Thus, this model
 enables highly scalable communication within a job, while 
 limiting communications between jobs, addressing 
 both the {\em multidimensional scale} as well as security issues.
-
 Further, this backbone per-job communication network 
 supports many well-known bootstrap interfaces 
 for distributed programs including many MPI implementations 
