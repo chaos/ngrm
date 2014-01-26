@@ -43,7 +43,7 @@ Once this is done, all of the producers and consumers
 enter the synchronization phase in which they 
 participate in a consistency protocol. They use
 \flux's synchronization primitives such as {\tt kvs\_fence}
-or its causal-consistency scheme.
+and its causal-consistency scheme.
 Finally, during the consumer phase, consumers read
 these key-value objects by calling {\tt kvs\_get}s.
 KAP provides options to emulate various read access

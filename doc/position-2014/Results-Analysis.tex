@@ -16,59 +16,72 @@ KVS operations, their communication fabric cannot be established.
   \centering
   \includegraphics[width=.75\linewidth]{producer}
   \caption{Max latency of producer phase}
-  \vspace{-.5cm}	
   \label{fig:prod}
 \end{figure}
 
-Figure~\ref{fig:prod} shows the maximum latency of the producer phase
-for these cases. Essentially, these plots indicate how well {\tt kvs\_put}
+Figure~\ref{fig:prod} shows the maximum latency of the producer phase.
+Essentially, these plots indicate how well {\tt kvs\_put}
 scales as we increase the number of producers. Each plot represents
-different value sizes---e.g., vsize-8 refers to value size being
+different value sizes---e.g., {\tt vsize-8} refers to value size being
 8 bytes. As shown in this graph, the {\tt kvs\_put} simply performs and
 scales well. This matches our expectations because objects
 are cached in write-back mode at {\tt kvs\_put} time and flushed to the
 server at the next consistency event. 
 
 \ifcomments
-\marginpar{\tiny DA: I will add data from 8K if I get it on Zin in time.}
 \marginpar{\tiny JG: The vsize-32768 requires some explanation}
 \fi
 
-\begin{figure}[ht]
+%\begin{figure}[ht]
+%\centering
+%\begin{subfigure}[With unique values]{
+%  \includegraphics[width=.75\linewidth]{sync}
+%  \label{fig:sync:noredund}
+%}%
+%\end{subfigure}
+%\begin{subfigure}[Improvements with redundant values]{
+%  \includegraphics[width=.75\linewidth]{sync-redund}
+%  \label{fig:sync:redund}
+%}%
+%\end{subfigure}
+%\caption{Max latency of synchronization phase}
+%\vspace{-.6cm}	
+%\label{fig:sync}
+%\end{figure}
+%
+
+\begin{figure}
 \centering
-\begin{subfigure}[With unique values]{
-  \includegraphics[width=.75\linewidth]{sync}
-  \label{fig:sync:noredund}
-}%
-\end{subfigure}
-\begin{subfigure}[With redundant values]{
-  \includegraphics[width=.75\linewidth]{sync}
-  \label{fig:sync:redund}
-}%
-\end{subfigure}
+\includegraphics[width=.75\linewidth]{sync-redund}
 \caption{Max latency of synchronization phase}
+\vspace{-.4cm}	
 \label{fig:sync}
 \end{figure}
-
+ 
 
 Moving to the synchronization phase, Fig.~\ref{fig:sync} shows 
 how {\tt kvs\_fence} scales during this phase
 as we increase the number of producers. 
 As with the producer latency,
-each plot represents different value sizes.
+each plot represents different value sizes under two different
+value types: unique values vs. redundant values.
 The most revealing observation is that
-fence scalabilty appears to depend on the level of
+fence scalability depends on the level of
 redundancy in key-value objects that had previously 
-been put in. Figure~\ref{fig:sync:redund} 
-shows the maximum latency of the synchronization phase
-when redundant values are used. It scales
-far better than Fig.~\ref{fig:sync:noredund}
-where there is zero redundancy in values. 
-We theorize that in the former case, fence performs linearly with respect to the number of
-producers because these unique values are being {\em concatenated} while
-being sent up the tree. It performs logarithmically for the latter case
-because redundant values are being {\em reduced} while being sent 
-up the tree. %%(MENSION R^2 here?)
+been put in. Figure~\ref{fig:sync} 
+shows the improvements made when redundant values are used. 
+Label {\tt red-vsize-k} is the maximum latency metric
+as {\tt vsize-k} except that 
+redundant values had been used.
+
+We theorize that in the unique-value case, fence performs 
+linearly with respect to the number of
+producers because these values are simply being {\em concatenated} while
+being sent up the tree. It would perform logarithmically for the redundant-value case
+because redundant values are {\em reduced} while being sent 
+up the tree. However, our data shows that the redundant-value case
+also scales linearly, and we believe this is because of keys 
+are concatenated while values are reduced. 
 
 \ifcomments
 \marginpar{\tiny DA: I am speculating a bit for redundant case; my job on cab will confirm or deny this.}
@@ -89,20 +102,20 @@ up the tree. %%(MENSION R^2 here?)
 }%
 \end{subfigure}
 \caption{Max latency of consumer phase (value size: 8 bytes)}
-\vspace{-.5cm}
+\vspace{-.3cm}
 \label{fig:consumer}
 \end{figure}
 
-Figure~\ref{fig:consumer} shows the maximum latency of the consumer
+Next, Figure~\ref{fig:consumer} shows the maximum latency of the consumer
 phase with respect to various parameter settings. 
 These results suggest how well {\tt kvs\_get}
 scales, as we increase the number of consumers. Each plot represents
 the latency when each consumer reads different numbers of 
-objects, e.g., the access-4 plot represents each consumer reading
+objects, e.g., the {\tt access-4} plot represents each consumer reading
 4 distinct objects.  While these figures show only the performance of reading
-objects 8 bytes in size, we observe that the general 
+objects 8 bytes in size, we observe that 
 scalability trends are similar at different value sizes.
-Suprisingly, we see little change in performance when value sizes
+Surprisingly, we see little change in performance when value sizes
 exceed the 42-byte store-by-reference limit.
 
 Figure~\ref{fig:cons:dir} shows the maximum latency of {\tt kvs\_get}
@@ -110,7 +123,7 @@ when the target key-value objects are all stored in a single
 KVS directory. The latency is quite high and also increases
 linearly as we increase the number of consumers. 
 It appears that the poor performance and scaling behavior 
-can be attributed to the fact that our slave caches store only full
+are attributed to the fact that our slave caches store only full
 objects, and the small objects being consumed in the test are all
 placed in a single large directory object.
 This directory object has to be retrieved in full by the slave cache,

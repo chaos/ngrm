@@ -1,21 +1,14 @@
 \subsection{Case study: Interoperable Integration of Tools and Middleware}
 \label{case}
-Next-generation systems impose greater productivity
-challenges. Application development is 
-becoming increasingly difficult, and \flux\
-must mitigate this by supporting a rich 
+When it comes to an RM run-time system, it is 
+not only with performance and scalability,
+but also easy integration and interoperability are critical.
+In particular, next-generation systems impose greater productivity
+challenges, and \flux\ must mitigate this by supporting a rich 
 productivity software ecosystem. 
-%Thus, a wide range of run-time software
-%programs such as parallel programming models, 
-%tools and middleware must build on the strength
-%of one another by using \flux's support for 
-%performance, scalability, easy integration 
-%and interoperability.
-To show that \flux\ provides this ecosystem 
-not only with performance and scalability
-but also easy integration and interoperability,
-we present our experiences of porting our development 
-environment software. 
+Here, we present our experiences of porting our development
+environment software as a case study
+to show \flux's ability to facilitate building this ecosystem. 
 
 As part of our design strategy, we decided to 
 co-design the porting of several run-time tools, middleware 
@@ -24,10 +17,10 @@ Among them include a highly scalable lightweight debugging tool
 (the Stack Trace Analysis Tool (STAT)~\cite{STAT}),
 a scalable program loading middleware system (the 
 Scalable Parallel Input Network for Dynamic 
-Loading Environment (SPINDLE)),
+Loading Environment ({\sc Spindle})),
 and a daemon launching infrastructure (LaunchMON~\cite{launchmon}). 
 
-We chose them because many other run-time software
+We chose them because many run-time software
 programs demand similar RM support as theirs.
 For example, they must scalably launch and bootstrap 
 distributed processes to establish a scalable 
@@ -40,25 +33,24 @@ Perhaps more importantly, we decided to use these programs
 in our co-design because they suffer interoperability issues on 
 today's RMs~\cite{Jette02slurm,ALPS,BGQRes,Castain05theopen}.
 Users cannot easily use both STAT
-and SPINDLE simultaneously because they contend for
+and {\sc Spindle} simultaneously because they contend for
 the MPIR process acquisition interface~\cite{MPIRInterface}.
 While de factor standard, this interface is designed 
 to be used by a single tool at a time. 
-A more flexible mechanism must be provided by RMs
+A more flexible mechanism must be provided by \flux\
 to address the issues.
 
-Our general approach was to support run-time software programs 
+Our general approach was to support a wide range of run-time software programs 
 at the same level as we support other parallel programming 
-models such as MPI. For this, we heavily relied on the concept of lightweight 
+models such as MPI. For this, we heavily relied on lightweight 
 job (LWJ). We treated 
 distributed processes of these run-time programs
 as LWJs and used \flux's 
-generic run-time services to launch/boostrap them and 
-relate them to the target application processes,
-which are also simply an LWJ.
+generic run-time services to launch/bootstrap them and 
+relate them to the target application processes.
 
 Our first step to embody this approach was to rework LaunchMON
-to use \flux\'s run-time mechanisms directly instead 
+to directly use \flux's run-time mechanisms instead 
 of the MPIR interface. Specifically, its engine
 was modified to use KVS; and its back-end 
 API run-time was modified to use KVS as well 
@@ -66,22 +58,22 @@ to exchange connection information about
 distributed processes of its client tools in a similar way that MPI run-time 
 uses it. 
 
-Once LaunchMON was integrated into \flux, porting 
-STAT and SPINDLE to this this new scheme was 
+Once LaunchMON was integrated into \flux, integrating 
+STAT and {\sc Spindle} into this new scheme was 
 straightforward---it took less than one week each.
 Under the new scheme, STAT's daemons 
-and SPINDLE server processes are simply LWJs 
-that use scalable RM services to act on the target processes, 
+and {\sc Spindle} server processes were simply LWJs 
+that use our scalable services to act on the target processes, 
 another LWJ. STAT uses these services to debug the 
-target LWJ; SPINDLE to connect to the network clients sitting on the target LWJ.
+target; {\sc Spindle} to connect to the network clients sitting on the target.
 
-Further, by avoiding using the MPIR interface, 
-this approach made these programs interoperate.
-Users can scalably start-up a massive application 
+Further, by avoiding the MPIR interface, 
+this approach made these programs highly interoperate.
+Users can now scalably start-up a massive application 
 that dynamically loads hundreds of shared libraries 
-using SPINDLE.
+using {\sc Spindle}.
 If the application suffers a bug, they can apply
 STAT to debug it transparently and scalably.
 This is new and shows that \flux\ can address extreme-scale 
-code-development challenges like these by enabling easy and interoperable 
-integration. 
+code-development challenges such as these by enabling easy and interoperable 
+integration with specialized systems. 
