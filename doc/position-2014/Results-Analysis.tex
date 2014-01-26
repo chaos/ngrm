@@ -77,11 +77,13 @@ redundant values had been used.
 We theorize that in the unique-value case, fence performs 
 linearly with respect to the number of
 producers because these values are simply being {\em concatenated} while
-being sent up the tree. It would perform logarithmically for the redundant-value case
+being sent up the tree, and that it performs logarithmically for the
+redundant-value case
 because redundant values are {\em reduced} while being sent 
 up the tree. However, our data shows that the redundant-value case
-also scales linearly, and we believe this is because of keys 
-are concatenated while values are reduced. 
+falls short of logarithmic scaling, and we believe this is
+because while values are reduced, the {\em (key, SHA1)} tuples
+referring to them are still concatenated.
 
 \ifcomments
 \marginpar{\tiny DA: I am speculating a bit for redundant case; my job on cab will confirm or deny this.}
@@ -108,8 +110,8 @@ are concatenated while values are reduced.
 
 Next, Figure~\ref{fig:consumer} shows the maximum latency of the consumer
 phase with respect to various parameter settings. 
-These results suggest how well {\tt kvs\_get}
-scales, as we increase the number of consumers. Each plot represents
+These results show how {\tt kvs\_get}
+scales as we increase the number of consumers. Each plot represents
 the latency when each consumer reads different numbers of 
 objects, e.g., the {\tt access-4} plot represents each consumer reading
 4 distinct objects.  While these figures show only the performance of reading
@@ -119,19 +121,17 @@ Surprisingly, we see little change in performance when value sizes
 exceed the 42-byte store-by-reference limit.
 
 Figure~\ref{fig:cons:dir} shows the maximum latency of {\tt kvs\_get}
-when the target key-value objects are all stored in a single
-KVS directory. The latency is quite high and also increases
+when the target keys are all stored in a single
+KVS directory object. The latency is quite high and also increases
 linearly as we increase the number of consumers. 
 It appears that the poor performance and scaling behavior 
 are attributed to the fact that our slave caches store only full
-objects, and the small objects being consumed in the test are all
-placed in a single large directory object.
-This directory object has to be retrieved in full by the slave cache,
-through the tree of CMB-tree parents, when the first
-member object is requested by {\tt kvs\_get} and a fault occurs.
+objects, and the small objects being consumed in the test cannot
+be retrieved without faulting in the entire directory object
+containing them, through the tree of CMB slave cache instances.
 
 With our access pattern where $G$ objects are read collectively by
-$C$ consumers, and the time to replicate G objects in a single slave cache
+$C$ consumers, and the time to replicate $G$ objects in a single slave cache
 from its CMB-tree parent is given by $T(G)$, the maximum consumer latency is given by
 \begin{equation}
 log_2(C) \times T(G).

@@ -40,7 +40,7 @@ the KVS belonging to a job to be {\em reaped} at job termination and
 incorporated in some reduced form into the KVS of the parent job.
 
 Interestingly, if KVS persistence were implemented using an on-disk
-object directory structured like the git's~\cite{Chacon:2009:PG:1618548},
+object directory structured like git's~\cite{Chacon:2009:PG:1618548},
 which uses SHA1 digests as file names, it could be shared across multiple
 masters using a network file system like NFS with close-to-open cache
 coherency, since file names will always refer to the same content and
