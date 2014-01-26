@@ -21,15 +21,16 @@ low noise, fault tolerance,
 and heterogeneity management delivered within increasingly
 stricter power bounds.
 
-In fact, a greater interplay among various classes
+A greater interplay among various classes
 of clusters across the entire computing facility already 
 makes the current paradigm of single-cluster scheduling
 suboptimal. An application running on a compute
 cluster heavily utilizes site-wide shared resources
-such as I/O and visualization clusters.
-Thus, avoiding any significant site-wide bottleneck
+such as I/O clusters. 
+%and visualization clusters.
+Avoiding any significant site-wide bottleneck
 requires the RM to schedule the job to all dependent
-resources together.
+resources.
 
 Meanwhile, greater difficulties in code development
 on larger systems have begun to impose far more complex
@@ -44,11 +45,11 @@ provide accurate correlations between user-level errors
 and system-level events,
 and facilitate integration and accelerate development of a rich set of scalable tools.
 
-In short, a RM that effectively
+In short, an RM that effectively
 addresses all of these challenges can net HPC centers
 and their users significant productivity gains.
 Our response to this critical need is \flux,
-a RM software framework that addresses the key emerging
+an RM software framework that addresses the key emerging
 challenges in a simple, extensible, distributed,
 and autonomous fashion.
 It aims at managing the whole computing facility
@@ -66,22 +67,31 @@ designed from the ground up for scalability, security,
 and fault tolerance will result in a more efficient
 and capable system.
 
-In this paper we introduce our concept of the \flux\ next-generation
-resource management framework
-and focus on two core elements that we have prototyped: a
+In this paper we introduce \flux\ and specifically focus on two core 
+elements that we have prototyped: a
 communication framework including the Comms Message Broker (CMB), and
-workload
-run-time tools for efficient execution of transactions within a job. In the
-latter category we have developed a distributed Key Value Store (KVS) and
-scalable process management services, as well as other components and a
-model
-using the concept of lightweight jobs (LWJ).
-We present a detailed description of our CMB and KVS prototypes
-as well as some preliminary results and a performance model that
-demonstrates scaling properties of these core \flux\ components.
-The results presented in this paper have supported and will continue to guide our design
-choices as we build additional parts of our RM infrastructure.
-It is our hope that \flux\ will enable developers at the operating system and
-run-time levels to leverage the RM data stores and services in
-unprecedented ways, and that it will position HPC centers to cope
-with diverse, extreme-scale resources..
+workload run-time services that enable efficient, interoperable 
+execution of transactions within a job. 
+CMB represents a novel back-bone overlay network
+for \flux,
+which can replace all the redundant and independent 
+daemon infrastructures that currently exist.  
+In the latter category, \flux\ builds its services
+around a novel concept called lightweight jobs (LWJs)
+and a scalable Key Value Store (KVS) mechanism.
+
+The preliminary results of our performance evaluation 
+and our  performance model show that KVS and CMB provides 
+strong and predictable scaling properties.
+Further, our case study on integrating various key run-time software software
+programs indicate that \flux's run-time elements 
+provide these programs with 
+easy integration and interoperability.
+These results continue to guide our design choices
+as we build additional parts of our RM framework.
+
+
+%It is our hope that \flux\ will enable developers at the operating system and
+%run-time levels to leverage the RM data stores and services in
+%unprecedented ways, and that it will position HPC centers to cope
+%with diverse, extreme-scale resources..
