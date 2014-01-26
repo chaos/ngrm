@@ -14,6 +14,7 @@ and monitored by existing ones in a parent-child relationship.
 \vspace{-.5cm}
 \centering
 \includegraphics[trim=5.0cm 8.0cm 5.0cm 8.0cm,scale=0.40]{B_Tree_4Layer_BW}
+\vspace{-.3cm}
 \caption{A comms session} 
 \vspace{-.5cm}
 \label{fig:commswireup}
@@ -60,6 +61,16 @@ any tree shape for testing or to tune performance.
 Security and comprehensive fault-tolerance are not yet implemented,
 but are near-term design topics.
 
+The CMB allows us to experiment with loosely coupled distributed services
+while reusing the underlying message routing framework.  Various comms
+services have been implemented as CMB plugins.  Plugins currently exist for
+the services listed in Table~\ref{tab:cmbplugins}.
+Each embodies an active topic for study and experimentation. % by the \flux\ team.
+
+In addition to CMB plugins, external programs can communicate with the CMB
+via a UNIX domain socket.  A {\tt flux} utility wraps up two dozen or so
+modular subcommands used to interact with and test the CMB plugins.
+
 \begin{table}
 \centering
 \vspace{-.5cm}
@@ -104,17 +115,9 @@ sched & Lightweight job requests are queued in the KVS, assigned
 \hline
 \end{tabular}
 \label{tab:cmbplugins}
+\vspace{-.5cm}
 \end{table}
 
-The CMB allows us to experiment with loosely coupled distributed services
-while reusing the underlying message routing framework.  Various comms
-services have been implemented as CMB plugins.  Plugins currently exist for
-the services listed in Table~\ref{tab:cmbplugins}.
-Each embodies an active topic for study and experimentation by the \flux\ team.
-
-In addition to CMB plugins, external programs can communicate with the CMB
-via a UNIX domain socket.  A {\tt flux} utility wraps up two dozen or so
-modular subcommands used to interact with and test the CMB plugins.
 
 All CMB messages have a uniform multi-part message format consisting of
 a {\em tag frame} and a {\em JSON~\cite{rfc4627} frame}.  The tag frame identifies the
