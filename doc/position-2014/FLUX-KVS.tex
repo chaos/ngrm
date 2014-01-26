@@ -1,7 +1,7 @@
 \subsection{Distributed Key-Value Store}
 
 Key-Value Stores (KVS) have become ubiquitous building blocks in large-scale
-internet services but have been underutilized in high performance
+Internet services but have been underutilized in high performance
 computing~\cite{Wang:2013:USE:2503210.2503239}.
 We determined that a KVS would be a
 useful building block for our new system and prototyped several designs.
@@ -92,9 +92,9 @@ of Figure~\ref{fig:kvsupdate}, to update {\tt a.b.c = 43}, we:
 All updates are applied first on the master node at the root of the
 CMB tree, which then publishes a new root reference as a CMB event.
 Slaves keep consistent with the master by switching their root reference
-in response to this event, so that all new lookups must begin at the
+in response to this event, so that all new look-ups must begin at the
 new root directory.  Objects missing from the slave object cache during
-a lookup are faulted in from their CMB-tree parent, recursing up the tree
+a look-up are faulted in from their CMB-tree parent, recursing up the tree
 until the request can be fulfilled.  Unused slave object cache entries are
 expired after a period of disuse to save memory.
 
@@ -108,7 +108,7 @@ backwards.  We achieve causal consistency by allowing this version number
 to be read after an update, and by providing another call to wait for this
 root version or greater on another node before accessing the value.
 
-The KVS API includes classes of functions for putting, commiting, and
+The KVS API includes classes of functions for putting, committing, and
 getting KVS objects.  
 %We refer to these classes as
 %{\em producer}, {\em synchronization}, and {\em consumer} respectively
@@ -118,7 +118,7 @@ writes {\em val} to the object store asynchronously in a write-back
 mode through the tree of slave caches.
 The ({\em key, SHA1}) tuple is cached locally pending commit.
 
-{\tt kvs\_commit ()} synchronously flushes ({\em key, SHA1}) tuples
+{\tt kvs\_commit ()} synchronously flushes ({\em key, SHAT1}) tuples
 and any still-dirty objects to the master.  On the master, it then
 processes the set of tuples, creating new directory objects as described
 above, finally arriving at a new root SHA1.  It then updates the 
