@@ -1,8 +1,8 @@
 \subsection{Case study: Interoperable Integration of Tools and Middleware}
 \label{case}
 When it comes to an RM run-time system, it is 
-not only with performance and scalability,
-but also easy integration and interoperability are critical.
+not only performance and scalability,
+but also easy integration and interoperability, that are critical.
 In particular, next-generation systems impose greater productivity
 challenges, and \flux\ must mitigate this by supporting a rich 
 productivity software ecosystem. 
@@ -17,7 +17,7 @@ Among them include a highly scalable lightweight debugging tool
 (the Stack Trace Analysis Tool (STAT)~\cite{STAT}),
 a scalable program loading middleware system (the 
 Scalable Parallel Input Network for Dynamic 
-Loading Environment ({\sc Spindle})),
+Loading Environment ({\sc Spindle})~\cite{SPINDLE}),
 and a daemon launching infrastructure (LaunchMON~\cite{launchmon}). 
 
 We chose them because many run-time software
@@ -47,7 +47,7 @@ job (LWJ). We treated
 distributed processes of these run-time programs
 as LWJs and used \flux's 
 generic run-time services to launch/bootstrap them and 
-relate them to the target application processes.
+relate them to the target application.% processes.
 
 Our first step to embody this approach was to rework LaunchMON
 to directly use \flux's run-time mechanisms instead 
@@ -68,12 +68,12 @@ another LWJ. STAT uses these services to debug the
 target; {\sc Spindle} to connect to the network clients sitting on the target.
 
 Further, by avoiding the MPIR interface, 
-this approach made these programs highly interoperate.
+this approach made these programs interoperate.
 Users can now scalably start-up a massive application 
 that dynamically loads hundreds of shared libraries 
 using {\sc Spindle}.
-If the application suffers a bug, they can apply
-STAT to debug it transparently and scalably.
+If this job suffers a bug, they can also apply
+STAT to debug it transparently.
 This is new and shows that \flux\ can address extreme-scale 
 code-development challenges such as these by enabling easy and interoperable 
 integration with specialized systems. 

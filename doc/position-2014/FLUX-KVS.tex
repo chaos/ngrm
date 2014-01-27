@@ -53,8 +53,7 @@ stored {\tt a.b.c = 42} in the KVS, we would look it up as follows
 \end{enumerate}
 
 An important property of this structure is that any update results
-in a new SHA1 root reference.  Continuing the example
-of Figure~\ref{fig:kvsupdate}, to update {\tt a.b.c = 43}, we:
+in a new SHA1 root reference.  Continuing the example, to update {\tt a.b.c = 43}, we:
 \begin{enumerate}
 \item{store 43 to {\tt 62302aff...}.}
 \item{update {\tt b} to associate {\tt c} with {\tt 62302aff...}, and store {\tt b} to {\tt 8fe9b2c3...}.}
