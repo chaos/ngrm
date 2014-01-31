@@ -73,27 +73,12 @@ as a collection of compute nodes, a simplistic perspective
 ill-suited for the new paradigm. Today's applications 
 are diverse with disparate limiting performance factors 
 beyond floating point computation. 
-
 Further, computing centers are increasingly concerned 
 about managing new resource types such as power 
-and shared persistent storage. The generalized resource 
-model is our concept to represent various resource types 
-and their relationships that can impact how well applications 
-perform and the computing facility operates. 
-Our generalized resource model also includes a unified 
-resource specification and description language. 
-Speaking the same resource description language 
-for request specification provides transparency and 
-fine-grained expressibility. 
-
-More specifically, the unified language approach 
-allows users to express their resource requests 
-more flexibly, e.g., using ranges or boolean 
-expressions instead of hard amounts to allow requests 
-to be fulfilled from several equivalent resource types. 
-This makes the scheduling granularity 
-of jobs finer and more malleable.
-This model addresses the {\em diverse workload} challenge.
+and shared persistent storage. Our generalized resource
+model addresses this need by provding an extensible
+and flexible representation for resources
+and their relationships.
 
 \vspace{1ex}
 \noindent{\em Resource Allocation Elasticity Model:} As our 
@@ -129,7 +114,7 @@ enables highly scalable communication within a job, while
 limiting communications between jobs, addressing 
 both the {\em multidimensional scale} as well as security issues.
 Further, this backbone per-job communication network 
-supports many well-known bootstrap interfaces 
+supports well-known bootstrap interfaces 
 for distributed programs including many MPI implementations 
 as well as run-time tools.  This provides tightly integrated support
 for the development and use of scalable run-time tools

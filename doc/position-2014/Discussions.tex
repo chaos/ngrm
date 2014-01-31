@@ -50,21 +50,18 @@ run-time levels to leverage the RM data stores and services in
 unprecedented ways, and that it will position HPC centers to cope
 with diverse, extreme-scale resources.
 
-
-%Interestingly, if KVS persistence were implemented using an on-disk
-%object directory structured like the git's~\cite{Chacon:2009:PG:1618548},
-%which uses SHA1 digests as file names, it could be shared across multiple
-%masters using a network file system like NFS with close-to-open cache
-%coherency, since file names will always refer to the same content and
-%published references could be guaranteed coherent.
-%Such a scheme could be used to build a clustered KVS master with each
-%node in the cluster servicing disjoint shards of the key space but
-%sharing a common object store.
-
-
-
-
-
+%\section{Future Work}
+%
+%We have validated some aspects of the design of \flux\ CMB and KVS
+%through the KVS performance evaulation in Section~\ref{results}
+%and the exercise of prototyping LWJ management primitives for the
+%case study in Section~\ref{case}.  However, we have discovered some
+%deficiencies, and have simply not yet tackled some features
+%that must be addressed before we can build production
+%quality versions of the CMB and KVS.
+%These include network security, comprehensive fault tolerance,
+%KVS persistance, and KVS clustering.
+%
 %The original \flux\ design described a job and hence a comms session
 %as having an owner with the ability to control what other users could
 %execute within the job, including the ability to launch new jobs and
@@ -78,7 +75,12 @@ with diverse, extreme-scale resources.
 %with one another or attain inappropriate privileges, and to integrate with
 %enterprise authentication services such as Kerberos.
 %
-
+%The \flux\ CMB detects non-responsive nodes, evicts them from
+%the session, and alters its topology to work around them.
+%There is not a comprehensive strategy for ensuring that all in-flight
+%RPC's complete or are restarted across one of these fail-over events,
+%and that state from the evicted node is recoverable.
+%
 %The current KVS object cache is stored in memory.
 %On slave caches, objects are expired after a period of disuse.
 %On the master, however, objects must remain in memory forever.
@@ -90,7 +92,7 @@ with diverse, extreme-scale resources.
 %incorporated in some reduced form into the KVS of the parent job.
 %
 %Interestingly, if KVS persistence were implemented using an on-disk
-%object directory structured like the git's~\cite{Chacon:2009:PG:1618548},
+%object directory structured like git's~\cite{Chacon:2009:PG:1618548},
 %which uses SHA1 digests as file names, it could be shared across multiple
 %masters using a network file system like NFS with close-to-open cache
 %coherency, since file names will always refer to the same content and
@@ -99,14 +101,7 @@ with diverse, extreme-scale resources.
 %node in the cluster servicing disjoint shards of the key space but
 %sharing a common object store.
 %
-%There are other deficiencies we must address as well.
-%These include network security, comprehensive fault tolerance,
-%KVS persistance, and KVS clustering.
-
-%The \flux\ CMB detects non-responsive nodes, evicts them from
-%the session, and alters its topology to work around them.
-%There is not a comprehensive strategy for ensuring that all in-flight
-%RPC's complete or are restarted across one of these fail-over events,
-%and that state from the evicted node is recoverable.
-%
-
+%The current Flux code base is prototype quality and has not
+%been publicly released.  We hope to produce production quality
+%code in the next several months and release it under the GNU General
+%Public License in order to facilitate feedback and collaboration.

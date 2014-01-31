@@ -19,7 +19,7 @@ In addition to producer and/or consumer counts,
 KAP provides a range of parameters that can affect performance.
 Among them include the value size (of key-value objects),
 the number of objects to put,
-the number of objects to read, objects access 
+the number of objects to get, objects access 
 patterns (through different striding), and
 synchronization primitives used for consistency.
 KAP consists of four phases: setup, producer, synchronization 
@@ -29,8 +29,8 @@ into a set of nodes in which a CMB session had been established.
 They are assigned to ranks such that consecutive rank
 processes are distributed to consecutive nodes.
 Then, the rank processes determine their roles based
-on the command line arguments and issue a named barrier
-that \flux\ provides to begin to play their roles
+on the command line arguments and issue a
+\flux\ collective barrier to begin to play their roles
 simultaneously.
 
 Next, each producer calls the specified number of
@@ -41,8 +41,8 @@ or redundant.
 Once this is done, all of the producers and consumers
 enter the synchronization phase in which they 
 participate in a consistency protocol. They use
-\flux's synchronization primitives such as {\tt kvs\_fence}
-and its causal-consistency scheme.
+KVS synchronization primitives such as {\tt kvs\_fence}
+and {\tt kvs\_wait\_version}.
 Finally, during the consumer phase, consumers read
 these key-value objects by calling {\tt kvs\_get}s.
 KAP provides options to emulate various read access

@@ -102,8 +102,9 @@ us monotonic read consistency for free.  We achieve read-your-writes
 consistency by returning the new root reference in response to a commit
 request and applying it before returning to the caller.  We avoid
 racing with the event update and potentially breaking monotonic read
-consistency by versioning the root references and never running it
-backwards.  We achieve causal consistency by allowing this version number
+consistency by versioning the root references and ensuring they are
+never applied out of order.
+We achieve causal consistency by allowing this version number
 to be read after an update, and by providing another call to wait for this
 root version or greater on another node before accessing the value.
 
@@ -117,7 +118,7 @@ writes {\em val} to the object store asynchronously in a write-back
 mode through the tree of slave caches.
 The ({\em key, SHA1}) tuple is cached locally pending commit.
 
-{\tt kvs\_commit ()} synchronously flushes ({\em key, SHAT1}) tuples
+{\tt kvs\_commit ()} synchronously flushes ({\em key, SHA1}) tuples
 and any still-dirty objects to the master.  On the master, it then
 processes the set of tuples, creating new directory objects as described
 above, finally arriving at a new root SHA1.  It then updates the 
@@ -141,8 +142,8 @@ and old values, and calling the callback if they are different.
 Due to the internal hash tree organization, a watched directory changes
 if keys under it at any path depth change.
 
-The theoretical performance of our KVS prototype should be influenced by
-the several aspects of the design. First,  
+The theoretical performance of our KVS prototype is influenced by
+several aspects of the design. First,  
 slave caches are arranged hierarchically so that the effect of a
 cache miss across a large number of processes is mitigated by the tree
 fanout. Second, the act of storing an object redundantly in the object store
@@ -151,7 +152,6 @@ in cache, thus identical values and directories are reduced automatically.
 Third, commits are rate-limited.  Updates arriving within a configurable
 period of time (default 1 msec) are coalesced into a single update to
 avoid excessive intermediate object versions and cache invalidations.
-
 Fourth, the root directory object is sent along with its SHA1 reference when the
 new root is published, due to the high probability of needing to fault it in.
 Fifth, objects with an encoded JSON size less than or equal to the size

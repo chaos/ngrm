@@ -132,7 +132,7 @@ Most requests are routed via the upstream request overlay network
 and utilize the \zMQ\ {\em dealer-router} pattern's built-in source routing
 scheme for returning optional replies to the sender over the same network.
 Requests are routed to the first plugin encountered in the tree that claims
-the tag, or are negatively acknowledged at the root.  This enables plugins
+the tag, or are negatively acknowledged at the root.  This enables a plugin
 to be loaded at a variable tree depth to tune its level of distribution
 or conserve node resources for application workloads toward the leaves.
 Reductions are simply requests that are aggregated and retransmitted between
