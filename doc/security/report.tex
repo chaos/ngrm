@@ -104,25 +104,19 @@ than the private networks within a cluster.
 
 A key design attribute of \flux\ is that a job is a full resource
 manager instance that is capable of spawning additional jobs.
-Every job is assigned some set of resources.
-We define the {\em init job} to be a job that is autonomously bootstrapped on
-a resource set, and subsequently facilitates requests to launch child jobs
-on resource subsets, which may in turn facilitate grandchildren, etc..
-Every job has a {\em job owner}.  For the init job, the job owner
-should be a unique, unprivileged pseudo-user.  We also call the 
-job owner of the init job the {\em resource owner}.
+Every job is assigned some set of resources and has a {\em job owner}.
+We define the {\em init job} to be the first job bootstrapped on
+a resource set.  The job owner of the init job will be
+a unique, unprivileged pseudo-user called the {\em resource owner}.
 
-Every job is built upon a {\em comms session}, an instance of the \flux\ 
-communications framework consisting of one or more {\tt flux-cmbd} comms
-message broker daemons interconnected by a hierarchical overlay network.
-These processes run as the job owner.
+Integral to each job is a {\em comms session}, an instance of the \flux\ 
+communications framework consisting of one or more interconnected
+{\tt flux-cmbd} comms message broker daemons which run as the job owner.
 \flux\ resource manager services are implemented as comms modules,
-essentially plugins that are loaded into the {\tt flux-cmbd}
-address space.  The job owner can load and unload comms modules\footnote{
-  We leave open the possibility that comms modules could also be implemented
-  as separate processes.  The main point is that the job owner has intimate
-  control over the comms session and effectively owns it.
-}.
+plugins that are loaded into the {\tt flux-cmbd} under control of
+the job owner.  There is no mechanism to protect the comms session from
+a malicious job owner---this part of the system is designed to be configurable
+and even replaceable by the job owner.
 
 The init job's comms session is launched automatically on each node when it
 boots.  The \flux\ design calls for a job's parent to bound its resource
