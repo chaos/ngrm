@@ -1,9 +1,9 @@
 DEPSEC =
-DEPFIG = fig/launch1.pdf \
-	fig/launch2.pdf \
-	fig/launch3.pdf \
-	fig/launch4.pdf \
-	fig/container.pdf
+DEPFIG = fig/launch1.eps \
+	fig/launch2.eps \
+	fig/launch3.eps \
+	fig/launch4.eps \
+	fig/container.eps
 
 DEPBIB = \
 	../bib/project.bib \
@@ -29,7 +29,3 @@ report.pdf: report.tex $(DEPSEC) $(DEPFIG) $(DEPBIB)
 
 %.eps: %.dia
 	dia --nosplash --export=$@ --filter=eps-builtin $<
-
-%.pdf: %.eps
-	rm -f $@
-	pdflatex -shell-escape report
