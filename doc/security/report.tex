@@ -78,7 +78,7 @@ interact.
 A detailed security proposal is presented in Section~\ref{sec:security}.
 It is tested against various use cases in Section~\ref{sec:usecases}.
 
-\subsection{Background}
+\section{Background}
 \label{sec:background}
 
 \flux\ is middleware that facilitates remote execution across a site.
@@ -99,7 +99,7 @@ across a site than cluster-centric resource managers, and may
 require communication over networks that are less physically secure
 than the private networks within a cluster.
 
-\subsection{Job Launch Mechanism}
+\section{Job Launch Mechanism}
 \label{sec:softarch}
 
 A key design attribute of \flux\ is that a job is a full resource
@@ -113,24 +113,38 @@ Integral to each job is a {\em comms session}, an instance of the \flux\
 communications framework consisting of one or more interconnected
 {\tt flux-cmbd} comms message broker daemons which run as the job owner.
 \flux\ resource manager services are implemented as comms modules,
-plugins that are loaded into the {\tt flux-cmbd} under control of
+plugins that are loaded into {\tt flux-cmbd} under control of
 the job owner.  There is no mechanism to protect the comms session from
 a malicious job owner---this part of the system is designed to be configurable
 and even replaceable by the job owner.
 
-The init job's comms session is launched automatically on each node when it
-boots.  The \flux\ design calls for a job's parent to bound its resource
-consumption, so we think of every job as running within a set of containers
-created and managed by its parent, across the resource set.
-The init job doesn't have a parent, so on each node the ``container'' is
-all the resources on the node that are configured to be part of the job's
-resource set.
-Within any \flux\ container, a privileged service {\tt flux-launchd} offers
-process launch/containment services, and a {\tt flux-cmbd} provides resource
-manager services.  These services have UNIX domain sockets at well known
-locations in the container so that \flux\ API code can find them
-in any container at any job nesting level.
-The init job process hierarchy is illustrated in Figure~\ref{fig:launch}(a).
+This flexibility is made possible by the fact that each
+\flux\ job runs within a set of containers created and managed its
+parent.  The containers serve dual purposes:
+limiting resource consumption to bounds set by the parent,
+and providing a uniform interface to software running at any level
+of job recursion.
+Each container is managed by a privileged process, {\tt flux-launchd},
+which provides process launch capability, while enforcing site policy
+and parental resource bounds.
+{\tt flux-launchd} is the process-ancestor of all processes in the container,
+including {\tt flux-cmbd}.  Both {\tt flux-launchd} and {\tt flux-cmbd}
+listen on UNIX domain sockets at well-known paths within the container.
+A \flux\ container is depicted in Figure~\ref{fig:container}.
+\begin{figure}
+\centering
+  \includegraphics[scale=0.5]{container}
+\label{fig:container}
+\caption{Standard \flux\ container.}
+\end{figure}
+
+The init job is launched automatically on each node when it boots.
+Since it has no parent, the init job's containers are statically
+configured, beginning with {\tt flux-launchd} startup via {\tt init}(8)
+or equivalent.
+{\tt flux-launchd} then starts {\tt flux-cmbd}, which connects to
+its statically configured overlay peers.
+Figure~\ref{fig:launch}(a) shows an init job, bootstrapped.
 
 \begin{figure}
 \centering
@@ -170,80 +184,42 @@ A full job launch is similar to the LWJ launch, except that a new
 sub-container is instantiated, and a new comms session within it.
 From the perspective of the parent job, the child job looks similar to
 a LWJ, for example, stdio and signals for the child {\tt flux-cmbd} processes
-are managed by the parent as though 
-
-%In the case of a full child job, the set of {\tt flux-cmbds} comprising
-%a new comms session is launched.
-
-%In a sense, one launches a full job
-%by launching an LWJ consisting of a new comms session.
-
-%Figure~\ref{fig:launchjob}(a) shows a child job launch, while
-%Figure~\ref{fig:launchjob}(b) shows an LWJ launched within the child.
+are managed by the parent and its launch information is obtained from
+the parent KVS.
 
 \flux\ utilities interact with the comms session using either a UNIX
 domain ``API socket'' (if running in the same container as a job)
 or via an external TCP socket.  Messages sent via these mechanisms
-have to be stamped with the user id of the sender, and comms session
-modules processing these messages, for example the KVS module processing
+have to be stamped with the user id of the sender. Comms modules
+processing these messages, for example the KVS module processing
 get and put requests, have to compare the sender against a
 {\em capability list} for the job.  The job owner has the complete
 set of capabilities, and other users are granted access and capabilities
 by the job owner.
 
-It is worth considering for a moment that job owners are all-powerful within
-a job in terms of controlling job behavior, but they have no elevated OS
-privilege.  The job owner depends on {\tt flux-launchd} to launch work
-and must therefore convince it of the legitimacy of any
-request it makes to launch work as other users, alter containment, etc..
-The job owner should not be allowed to impersonate other users or
-subvert security-critical aspects of a user's request to run work,
-such as environment and arguments.  Nor should the job owner or submitting
-user be allowed to escape containment established by or inherited from
-a parent job.  
-
-\begin{figure}
-\centering
-\subfloat[Bob runs a job (red)]{{
-  \includegraphics[width=6cm]{launch3} }}
-\qquad
-\subfloat[Alice runs an LWJ (green)]{{
-  \includegraphics[width=6cm]{launch4} }}
-\label{fig:launchjob}
-\caption{More jobs on cluster {\em atlas}}.
-\end{figure}
-
-\section{Flux Security Architecture}
+\section{Proposed Security Architecture}
 \label{sec:security}
 
-The \flux\ communications framework leverages the security capability of
-its messaging substrate, \zMQ\cite{ZMQGuide}, which implements privacy,
-integrity, and authentication using public key encryption (PKE).
+The \flux\ communications framework overlay network
+is built upon the \zMQ\cite{ZMQGuide} messaging library.
+\zMQ\ implements privacy, integrity, and authentication
+between network peers using public key encryption (PKE).
 Leaving aside the details of \zMQ's PKE implementation for now,
-we note that each user generates a public, private keypair.
+the general idea is that each user generates a public, private keypair.
 A \zMQ\ endpoint must be configured with this keypair and have knowledge
 of the public keys of any users with which it will communicate.
 After an initial handshake, connection of endpoints only proceeds
 if the private key used to connect matches one of the public
-keys known on the other end and vice-versa.  Once this authentication
-handshake is successful, privacy and integrity are enabled on the channel
+keys known on the other end and vice-versa.  Once the handshake is
+complete, privacy and integrity are enabled on the channel
 between those endpoints.
 
-This security capability is used in a simple way to secure the sockets
+This security capability is used to secure the endpoints
 used in a \flux\ comms session's overlay network.  The job owner's
 keypair is configured on all endpoints.  Connection by other users
 is not permitted and messages exchanged within the comms session have
-privacy and integrity.
-
-\begin{figure}
-\centering
-  \includegraphics[scale=0.4]{container}
-\label{fig:container}
-\caption{Container for \flux\ init job on a single node.
-Orange runs as root, green as resource owner.}
-\end{figure}
-
-\subsection{Securing the Init Job}
+privacy and integrity.  Thus the the first aspect of our security
+architecture is that users need to have \flux\ keypairs.
 
 In order to bootstrap the init job's comms session, each {\tt flux-cmbd}
 needs to be launched with knowledge of the resource owner's keypair.
@@ -262,15 +238,7 @@ A comms module handling such requests compares the requestor identity
 stamped on the request message against the init job's capability list.
 If the user has the appropriate capability, and other conditions such as
 scheduling are met, a scalable launch mechanism in the style of
-WRECK\footnote{
-  Briefly, WRECK starts work by placing the environment, command line,
-  etc in the KVS and multicasting a run request referencing it.
-  The run request is received by the {\tt wrexec} comms module on target
-  nodes, which spawns a {\tt wrexecd} ``shepherd'' process.  {\tt wrexecd}
-  reads environment, etc. from the KVS, then fork/execs the child process.
-  While it runs, {\tt wrexecd} manage stdio, propagates signals,
-  and waits for a {\tt SIGCHLD}.
-}
+
 is initiated, except that the launch of {\tt wrexecd} and its children
 is arranged via {\tt flux-launchd} to allow privileged operations such as
 setting the effective uid to be performed as root.
@@ -278,75 +246,6 @@ setting the effective uid to be performed as root.
 When a user wants to run a job within the init job, the user's keypair
 will be needed so that a comms session can be started as that user and
 communicate securely.
-
-
-%\flux\ is built with the \zMQ\ messaging library, and will leverage
-%its mechanisms for authenticating and encrypting connections.
-%A \flux\ comms session establishes its hierarchical overlay network
-%using \zMQ\ sockets (TCP for inter-node, and UNIX domain for intra-node).
-%
-%
-%ties together the distributed
-%components of a \flux\ job.  Each job runs within a {\em comms session}
-%consisting of one or more comms message broker daemons ({\tt cmbd}s).
-
-%\paragraph{Session Peer Authentication}
-%The {\tt cmbd}s communicate using the \zMQ\ messaging library, which
-%implements a privacy and integrity scheme
-%based on elliptic curve public key cryptography
-%and the CurveZMQ protocol.  This protocol is described in the CurveZMQ
-%Specification~\cite{CurveZMQ}, which summarizes it as follows:
-%\begin{quote}
-%  CurveZMQ uses the Curve25519 elliptic curve, which was designed
-%  by Daniel J. Bernstein to achieve good performance with short key sizes
-%  (256 bits). The protocol establishes short-term session keys for every
-%  connection to achieve perfect forward secrecy.  Session keys are held
-%  in memory and destroyed when the connection is closed. CurveZMQ also
-%  addresses replay attacks, amplification attacks, MIM attacks, key
-%  thefts, client identification, and various denial-of-service attacks.
-%  These are inherited from CurveCP and are explained later.
-%\end{quote}
-%CurveZMQ applies to \zMQ\ TCP and IPC (UNIX domain) endpoints.\footnote{
-%EPGM endpoints are currently unprotected in \zMQ\ thus the current prototype
-%uses MUNGE\cite{MUNGE} to encrypt EPGM data.  A future effort is to develop
-%a native \zMQ\ security mechanism for EPGM.}
-%
-%A comms session has the following security attributes:
-%\begin{itemize}
-%\item{The {\tt cmbd} runs as the uid of the {\em job owner}, without
-%additional OS privilege.}
-%\item{The {\tt cmbd} is launched by {\tt flux-launchd} (see below) in an
-%inescapable container that prevents it from exceeding its resource allocation.}
-%\item{The job owner can extend or replace {\tt cmbd} functions through
-%dynamically loadable {\em comms modules}.}
-%\item{The {\tt cmbd} interacts with the privileged {\tt flux-launchd}
-%to start work including child jobs.}
-%\item{The {\tt cmbd} peers establish secure connections with CurveZMQ
-%using a set of public, private keys belonging to the job owner $J$,
-%denoted $(K_J, k_J)$ respectively.}
-%\item{{\tt cmbd} requires access to $(K_J, k_J)$ at launch time.\footnote{In
-%the current prototype where {\tt cmbds} are launched directly by SLURM,
-%$(K_J, k_J)$ are retrieved from the user's
-%{\tt \$HOME/.flux} directory like ssh keys.}}
-%\end{itemize}
-%
-%\paragraph{External Process Authentication}
-%Comms services are accessed by external programs connecting to
-%one of the {\tt cmbd} comms modules acting as a gateway.
-%For example, a process running inside the same container as
-%a {\tt cmbd} such as the PMI portion of an MPI runtime could make
-%requests via a UNIX domain socket, authenticated using SO\_PEERCRED.
-%Other programs might connect via a TCP connection, authenticated with Kerberos.
-%
-%Internally, the comms session and its modules needs the ability to
-%determine the user who sent a request message.  Current two-frame
-%requests need a third header frame that includes a {\tt sender}
-%attribute.  This would be filled in by modules autenticating outside
-%users and checked by services determining whether to fulfill requests.
-%
-%FIXME: describe {\em capabilities}  that could be checked by services
-%to allow/deny services to users.
-
 
 \section{Use Cases}
 \label{sec:usecases}

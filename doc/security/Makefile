@@ -16,9 +16,11 @@ view: all
 
 report.pdf: report.tex
 
-clean:
+clean-epstopdf:
+	rm -f fig/*.pdf
+
+clean: clean-epstopdf
 	rm -f *.aux *.log *.dvi *.pdf *.blg *.bbl
-	rm -f fig/*.pdf fig/*.eps
 
 report.pdf: report.tex $(DEPSEC) $(DEPFIG) $(DEPBIB)
 	rm -f *.log *.aux *.blg *.bbl
@@ -27,5 +29,7 @@ report.pdf: report.tex $(DEPSEC) $(DEPFIG) $(DEPBIB)
 	pdflatex -shell-escape report
 	pdflatex -shell-escape report
 
+
 %.eps: %.dia
+	make clean-epstopdf
 	dia --nosplash --export=$@ --filter=eps-builtin $<
