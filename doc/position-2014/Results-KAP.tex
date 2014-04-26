@@ -1,4 +1,4 @@
-\subsection{KVS Access Patterns (KAP) Tester}
+%\subsection{KVS Access Patterns (KAP) Tester}
 To examine the performance of \flux's run-time system,
 we developed a tester called KVS Access Patterns (KAP).
 %\begin{figure}
@@ -26,9 +26,9 @@ KAP consists of four phases: setup, producer, synchronization
 and consumer phases. 
 During the setup phase, tester processes are launched 
 into a set of nodes in which a CMB session had been established.
-They are assigned to ranks such that consecutive rank
+They are assigned ranks such that consecutive rank
 processes are distributed to consecutive nodes.
-Then, the rank processes determine their roles based
+The rank processes determine their roles based
 on the command line arguments and issue a
 \flux\ collective barrier to begin to play their roles
 simultaneously.

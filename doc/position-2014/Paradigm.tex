@@ -1,109 +1,152 @@
-\section{A New Paradigm for HPC Resource Management}
-The vision of \flux\ is to create a scalable RM
-software system that significantly improves
-operational efficiency and user productivity
-for resources spanning an entire
-computing facility.
-Our challenges include providing extreme
-scalability, low noise, and fault tolerance while
-managing arbitrarily complex aggregations of generic resources
-which may be subject to multiple dimensions of constraints
-such as power budgets, I/O throughput bounds, and other site-specific
-policy.
-In addition, the workloads themselves continue to become
-increasingly diverse, dynamic, and large.
-To address these challenges, the \flux\ design must include
-new conceptual models for resource management
-that comprise a new paradigm.
+\section{A new management paradigm for HPC}
+\label{label:paradigm}
+A HPC center provides a large array of computing
+platforms on which scientific applications perform
+computations.
+Here, an RJMS system is responsible for efficiently delivering 
+compute cycles of these platforms
+to multiple users of the applications. 
+Thus, the RJMS matches users' jobs with the available 
+resources and provides efficient functions 
+for building, submitting, launching and executing, 
+and monitoring jobs~\cite{GeorgiouThesis}. 
+Typically, an HPC center runs an RJMS instance~\cite{Jette02slurm} 
+to manage an individual system (e.g., cluster). Often,
+grid software ties these instances together. 
 
-\subsection{Design Challenges}
-\label{sect:challenges}
+However, several growing trends present major challenges 
+to the current management paradigm. 
+First, most systems sited at the center are growing larger 
+and types of resources are becoming increasingly diverse~\cite{GeorgiouThesis}. 
+%The RJMS must now provide  
+%extreme scalability, low
+%noise, fault tolerance, and heterogeneity management
+%to most of the resources sited across the entire center. 
+Second, with these trends, interplays between 
+various classes of resources
+(e.g., between compute clusters and a global file system)
+are becoming more complicated and disruptive~\cite{SCR,SPINDLE}. 
+Third, resource constraints are also becoming increasingly
+complex in a multidimensional and hierarchical fashion~\cite{power-overprovision}
+(e.g., dynamic power capping at the level of compute racks).
+Further, greater difficulties in code development
+impose challenging requirements on the RJMS~\cite{STAT,SPINDLE,PRUNER,SCR,launchmon}.
+Finally, the workloads themselves are becoming 
+diverse, dynamic, and large.
 
-The first requirement in designing \flux\ to 
-embody the new paradigm is that it must impose
-complex, multidimensional resource bounds at
-any scale, from the center-wide or global level,
-down to the level of individual processes,
+To address the issues stemming from these trends effectively,
+large HPC centers demand a new resource and job management paradigm.
+The new paradigm must increase its purview
+to manage resources across the entire center
+{\bf under one common RJMS framework}.
+This would allow the center to (co-)schedule jobs 
+to various types of resources and 
+provide much richer provenance on jobs (e.g., correlation between
+a user-level error and other system activities).
+
+Undoubtedly, the new paradigm will face unprecedented scale challenges
+in job scheduling. Thus, it must facilitate scheduler
+parallelism~\cite{Omega,Mesos} through hierarchical,
+multilevel resource management and job scheduling.
+In this multilevel scheme, higher-level schedulers
+should allow a site to impose site-wide policies, contracts,
+and constraints while lower-level schedulers should allow
+efficient use of any subsets of resources in accordance with
+workload types.
+The new paradigm must dynamically support arbitrary levels in
+this resource and job hierarchy.
+
+%It is important to note that all of these must 
+%be enabled by one common RJMS framework. 
+%The current paradigm of loosely coupling different software 
+%(i.e., grid software with cluster-wide RJMS instances) 
+%leads to a loss of important system knowledge
+%needed for effective resource and job management and scheduling. 
+%Different software employ distinct resource and
+%job representations and key data are often lost in translation.
+%Also, the single common framework can offer 
+%common run-time commonents as a backbone of
+%supporting hierarchical management of resources and jobs
+%in a highly scalable, fault-tolerant, secure and customizable
+%manner.
+
+We realize that embodying the new paradigm is non-trivial, as
+the following characterizes the challenges it must address.
+
+\noindent{\em Multidimensional scale challenge: } 
+The new paradigm requires that the RJMS can impose
+complex, multidimensional resource bounds at any scale, 
+from the center-wide level, down to the level of individual processes,
 and enable the most efficient execution and
 scheduling of workloads within these bounds.
-Only with RM purview over the entire computing
-facility can resources be managed at optimal operational efficiency.
-
-We characterize this design challenge as the {\em multidimensional
-scale} challenge.  Simply stated, the challenges include
+This imposes unprecedented scale challenges. 
+We generally characterize this challenge 
+as the {\em multidimensional scale} challenge. The challenges include
 supporting extreme scalability, addressing noise as concurrency
 increases, and managing a drastically increased amount of
 run-time information that must be monitored, traced, and stored.
-The requirement is that our RM shall handle increased scale in
-numbers of resources as well as jobs and other dimensions of RM data.
+The new paradigm must efficiently handle increased scale in
+numbers of resources as well as jobs and other dimensions 
+of RJMS data.
 
-A second requirement for \flux\ is to include a rich resource model.
-This includes a generalized model and representation for diverse
+\noindent{\em Diverse workload challenge: }
+HPC applications are known to have disparate performance 
+limiting factors. This requires
+the new paradigm to have a rich resource model.
+This includes a representation for diverse
 types of resources such as file systems, networks, visualization
 hardware, and heterogeneous compute engines, in addition to
 traditional clusters.
-With a richer resource model, the RM will be capable of imposing
+With a richer resource model, the RJMS will be capable of imposing
 complex, multidimensional resource bounds, as opposed to the
 simplistic traditional resource model that is fundamentally based on
 flat lists of nodes.
 With the ability to model sophisticated resource relationships,
-\flux\ will be able to schedule and
+the new paradigm will be able to schedule and
 allocate resources tailored to the disparate limiting
-factors of our applications.  For example, an application may be
-compute bound while others are I/O bound or power bound.
-This approach will enable stronger efforts to diagnose errors
-for both end users and support staff by associating jobs
-with other facility-wide events.
+factors of HPC applications.  
 
-We characterize this design challenge as the {\em diverse workload
-challenge}.   As one specific example of emerging resource types,
-power is becoming a critical factor. When the computing facility
-becomes power bound instead of compute-node bound, the RM design
-must enable the scheduling of workloads based upon the maximum
-power limit at any level of the facility. Thus the resource
-representation must be generalized enough to model continuously consumable
-resources like power, as well as the diversity of hardware.
-
-A third requirement is that resource allocations
-must be elastic. An application may have different
+\noindent{\em Dynamic workload challenge: }
+A third requirement of the new paradigm is that resource allocations
+must be elastic. HPC applications typically have different
 phases with disparate performance-limiting factors;
 it must be able to grow and shrink its resource allocation
-dynamically.  This is in contrast to traditional methods with
-static time-limit-bounded allocations.
+dynamically. Further, different resource types have different
+elastic properties 
+(e.g., power is a much more elastic resource than compute nodes).
+HPC applications and their programming models are
+becoming increasingly dynamic with different multi-resource requirements
+at different phases. 
+The paradigm must support multiple levels of elasticity~\cite{Convergence} 
+as a function of dynamically changing performance limiters
+as well as their limiting resource types---e.g., 
+rigid vs. moldable vs. malleable scheduling 
+against different workload and resource types.
 
-We characterize this design challenge as the {\em dynamic workload
-challenge}.  HPC applications and their programming models are
-becoming increasingly dynamic with different resource requirements
-at different phases.  The paradigm must support disparate performance
-limiters across applications, as well as dynamically changing performance
-limiters within a single application.
-
-Finally, the new paradigm must address increasing complexities
+\noindent{\em Productivity challenge: }
+The new paradigm must address increasing complexities
 in code development and system administration by facilitating
 the creation of more effective diagnostic and analysis tools.
-By providing basic, scalable monitoring and communication
-primitives at the job level that can be leveraged by tools,
-\flux\ will encourage a richer, stronger tool ecosystem where
-these basic but non-trivial capabilities need not be recreated
-from scratch in every tool, reducing development costs.
-Better tools will lead to lead to higher productivity for all
+For example, it must provide basic, scalable monitoring and communication
+primitives at the job level that can be leveraged by tools.
+It will encourage a richer, stronger tool ecosystem.
+% where
+%these basic but non-trivial capabilities need not be recreated
+%from scratch in every tool, reducing development costs.
+Better tools will lead to higher productivity for all
 stakeholders, including end users.
-We characterize this design challenge as the {\em productivity challenge}.
+%We characterize this design challenge as the {\em productivity challenge}.
 
-We have considered additional challenges that we
-have yet to explore fully. For example,
-another challenge that we considered was 
-the risk of higher downtime costs in a more global model.
-If the RM is not designed adequately, a downtime could negatively
+\noindent{\em Other challenges: }
+We have considered additional challenges. For example,
+the risk of higher downtime costs arises in a more global model.
+If the RJMS is not designed adequately, a downtime could negatively
 impact the availability of a large portion of the center's
-resources. Thus our RM must be tolerant of hardware and software
+resources. Thus, the RJMS must be tolerant of hardware and software
 faults and failures with no single point of failure and must
-also support live software upgrades. This and other challenges,
-including security, integration risk, and backwards compatibility 
-will be addressed in our future work.
+also support live software upgrades. 
+Other challenges include security, integration risk, 
+and backwards compatibility. 
+%will be addressed in our future work.
 
-%In summary, the global resource view, rich resource model,
-%elasticity, and seamless integration of other software 
-%represent the fundamental characteristics of the new
-%resource management paradigm.  
 %

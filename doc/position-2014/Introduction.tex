@@ -1,97 +1,112 @@
 \section{Introduction}
 
-Resource management (RM) software is critical
+Resource and job management software (RJMS) is critical
 for high performance computing (HPC).
-It is the centerpiece that allows efficient
+It is the centerpiece that enables efficient
 execution of HPC applications while providing
 the computing facility with the main means
-to maximize the utilization of its diverse array of computing
-resources.
+to maximize the utilization of its diverse array 
+of computing resources~\cite{GeorgiouThesis}.
 However, several growing trends make even
-best-in-breed RM software systems increasingly ineffective
-in dealing with the diversity and size of resources fielded for HPC centers.
-As numbers and types of compute cores
-continue to grow, the key RM challenges traditionally associated only
-with leadership-class machines are now
-relevant to all computing resources, including
-commodity Linux clusters. An effective HPC RM must increase
-its purview to manage resources across the entire
-computing facility and to enable extreme scalability,
-low noise, fault tolerance,
-and heterogeneity management delivered within increasingly
-stricter power bounds.
+best-in-breed RJMS systems increasingly
+ineffective in dealing with the diversity and size 
+of resources fielded for HPC centers.
+As numbers and types of compute resources
+continue to grow, the key management challenges 
+traditionally associated with only a few individual 
+extreme-scale machines~\cite{sequoia,titan} 
+quickly permeate through all computing resources 
+(e.g., commodity Linux clusters) 
+sited at a center. 
+RJMS now must provide all of the resources at the center
+with extreme scalability, low noise, fault tolerance, 
+and heterogeneity management delivered 
+within increasingly stricter power bounds.
 
-A greater interplay among various classes
-of clusters across the entire computing facility already 
-makes the current paradigm of single-cluster scheduling
-suboptimal. An application running on a compute
-cluster heavily utilizes site-wide shared resources
-such as file systems.
-%and visualization clusters.
-Avoiding any significant site-wide bottleneck
-requires the RM to schedule the job to all dependent
-resources.
-
-Meanwhile, greater difficulties in code development
-on larger systems have begun to impose far more complex
-requirements on the RM. For example, without adequate
-RM support, debugging, tuning, testing, and verification
-of applications have become increasingly difficult
-and time-consuming for end-users.
+In addition, greater difficulties in code development
+on larger systems impose increasingly challenging 
+requirements on the RJMS. Without adequate
+RJMS support, debugging, tuning, testing, and verification
+of applications have become too difficult and 
+time-consuming for end-users~\cite{STAT,SPINDLE,PRUNER,SCR,launchmon}.
 Next-generation code development environments
-require the RM to provide effective mechanisms
-to ease this user burden with features that support the reproducible results of program execution,
+require the RJMS to provide effective mechanisms
+to ease this user burden with features that support 
+the reproducible results of program execution,
 provide accurate correlations between user-level errors
 and system-level events,
-and facilitate integration and accelerate development of a rich set of scalable tools.
+and facilitate integration and development 
+of a rich set of scalable tools.
+Unless the RJMS can effectively
+address these shortcomings, HPC centers and their users 
+can suffer significant productivity losses.
 
-In short, an RM that effectively
-addresses these shortcomings can net HPC centers
-and their users significant productivity gains.
-Our response to this critical need is \flux,
-an RM software framework that addresses the key emerging
-challenges in a simple, extensible, distributed,
-and autonomous fashion.
-It aims at managing the whole computing facility
-as one common pool of diverse resources.
-Hence, scheduling decisions will be far more efficient
-as well as flexible to accommodate emerging constraints
-such as power capping.
-Further, the \flux\ design will integrate system monitoring and
-administration, lightweight virtualization, 
-and distributed tool communication capabilities 
-that are currently provided by disjoint
-and often overlapping software. 
-Integration of these facilities within a common framework
-designed from the ground up for scalability, security,
-and fault tolerance will result in a more efficient
-and capable system.
+The traditional resource and job management paradigm
+for large HPC centers organize the resources sited
+at a center in a static and flat hierarchy. Typically, it 
+runs an RJMS instance~\cite{Jette02slurm} to manage an individual cluster
+and those instances are connected together by 
+grid software~\cite{MOAB,PSBPro,LSF}.
+While simple, a greater interplay 
+among various classes of clusters across the center
+are already making this paradigm increasingly 
+inflexible and ineffective. 
+For example, the current paradigm cannot effectively
+schedule applications that utilize site-wide shared 
+resources such as file systems. 
+Without scheduling a file I/O-intensive job 
+to both compute resources and the dependent storage 
+hierarchy, overlapping I/O bursts coming from only a few
+unrelated jobs can randomly disrupt the entire center~\cite{SCR,SPINDLE}. 
+In addition, with a flat hierarchy, imposing complex 
+resource constraints at various levels at the center
+is becoming increasingly difficult. 
+%Avoiding any significant site-wide bottleneck
+%requires the RJMS to schedule the job to all dependent
+%resources that often span the boundaries 
+%of a single cluster.
 
-In this paper we introduce \flux\ and specifically focus on two core 
-elements that we have prototyped: a
-communication framework termed the Comms Message Broker (CMB), as well as
-workload run-time services for efficient, interoperable 
-execution of transactions within a job. 
-CMB represents a novel back-bone overlay network
-for \flux,
-which can replace all the redundant and independent 
+
+In this paper, we argue for a new paradigm that can
+effectively address the resource and job management 
+challenges that large HPC centers are increasingly facing.
+We argue that the new paradigm must increase its purview 
+to manage resources across the entire center under
+one common RJMS framework, and 
+be able to (co-)schedule jobs to various types of resources.
+We argue that the new paradigm must facilitate 
+scheduler parallelism~\cite{Omega,Mesos}. Further, it must
+provide the parallelism through hierarchical, multilevel 
+scheduling schemes with support for arbitrary numbers of levels, and 
+be capable of specializing each level.
+
+It will be a long journey to fully implement this new paradigm. 
+But we have made a few significant steps to embody the paradigm:
+we started to develop an open-source RJMS framework, \flux,
+and to explore its run-time core components.
+Thus, this paper also presents our early explorations
+of two core run-time elements: 
+communication framework termed the Comms Message Broker (CMB)
+and workload run-time services for efficient, interoperable
+launching and organizing of the distributed processes.
+CMB represents a novel back-bone overlay network for \flux,
+which can replace all the redundant and independent
 daemon infrastructures that currently exist in a typical cluster.
-In the latter category, \flux\ builds its services
-around a novel concept called the lightweight job (LWJ)
-and a scalable Key Value Store (KVS) mechanism.
 
-The preliminary results of our performance evaluation 
-and our  performance model show that KVS and CMB provides 
+This paper makes the following contributions:
+\begin{itemize}
+\item{Emerging resource and job management challenges that demand a new paradigm for large HPC centers;}
+\item{The design concept of \flux\ emboding this paradigm;}
+\item{Core run-time components of \flux\ as enablers of this paradigm;}
+\end{itemize}
+
+The results of our performance evaluation 
+and performance model show that KVS and CMB provide 
 strong and predictable scaling properties.
-Further, our case study on integrating various key run-time software software
-programs indicate that \flux's run-time elements 
-provide these programs with 
-easy integration and interoperability.
+%Further, our case study on integrating various key run-time software software
+%programs indicate that \flux's run-time elements 
+%provide these programs with 
+%easy integration and interoperability.
 These results continue to guide our design choices
-as we build additional parts of our RM framework.
+as we progressively realize our vision. 
 
-
-%It is our hope that \flux\ will enable developers at the operating system and
-%run-time levels to leverage the RM data stores and services in
-%unprecedented ways, and that it will position HPC centers to cope
-%with diverse, extreme-scale resources..

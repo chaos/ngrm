@@ -5,7 +5,7 @@ cases---i.e. both producer and consumer counts become equal to the total
 process count---are most revealing. In particular, we carefully analyze 
 the maximum latency of each of the main phases of KAP for these cases 
 because this metric represents the critical path of the performance of
-many HPC services. For example, distributed 
+many HPC process management services. For example, distributed 
 HPC software would use KVS operations in a coordinated fashion to exchange 
 connection information among processes during its bootstrapping 
 phase~\cite{LIBI,PMI2}. Unless {\em all} 
@@ -28,10 +28,10 @@ scales well. This matches our expectations because objects
 are cached in write-back mode at {\tt kvs\_put} time and flushed to the
 server at the next consistency event. 
 
-\ifcomments
-\marginpar{\tiny JG: The vsize-32768 requires some explanation}
-\fi
-
+%\ifcomments
+%\marginpar{\tiny JG: The vsize-32768 requires some explanation}
+%\fi
+%
 %\begin{figure}[ht]
 %\centering
 %\begin{subfigure}[With unique values]{
@@ -85,12 +85,12 @@ falls short of logarithmic scaling, and we believe this is
 because while values are reduced, the {\em (key, SHA1)} tuples
 referring to them are still concatenated.
 
-\ifcomments
-\marginpar{\tiny DA: I am speculating a bit for redundant case; my job on cab will confirm or deny this.}
-\marginpar{\tiny JG: Dong I can't see any difference between
-\ref{fig:sync:redund} and \ref{fig:sync:noredund}.}
-\fi
-
+%\ifcomments
+%\marginpar{\tiny DA: I am speculating a bit for redundant case; my job on cab will confirm or deny this.}
+%\marginpar{\tiny JG: Dong I can't see any difference between
+%\ref{fig:sync:redund} and \ref{fig:sync:noredund}.}
+%\fi
+%
 \begin{figure}[ht]
 \centering
 \begin{subfigure}[With single-directory layout]{
@@ -156,11 +156,11 @@ when we spread objects into directories of 128 objects each.
 Label {\tt mdir-acc-k} refers to the same access pattern as {\tt access-k} 
 except the accessing objects are stored across multiple directories.
 
-\ifcomments
-\marginpar{\tiny JG: Dong, can \ref{fig:cons:dir} and \ref{fig:cons:dirs}
-be refactored for clarity so the first has access plots and the second
-has mdirs-acc plots?}
-\fi
+%\ifcomments
+%\marginpar{\tiny JG: Dong, can \ref{fig:cons:dir} and \ref{fig:cons:dirs}
+%be refactored for clarity so the first has access plots and the second
+%has mdirs-acc plots?}
+%\fi
 When objects are spread across directories and the amount of data
 faulted into slave caches decreases as a function of tree levels, 
 the latency can be modeled as a geometric series.

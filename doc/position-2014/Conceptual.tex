@@ -1,46 +1,39 @@
-\subsection{Conceptual Software Design}
+\section{Conceptual design of \flux}
 \label{models}
-We describe some of the primary conceptual models that
-embody the new paradigm while addressing
-the multitude of design challenges described above.
-These models form the basis for the software design
-of \flux.
+Flux is the open-source RJMS framework we are actively
+investigating to embody the new paradigm while
+addressing the multitude of challenges described above.
+This section describes some of its fundamental design
+concepts.
 
 \vspace{1ex}
-\noindent{\em Unified Job Model:} Traditionally, a job is
-simply defined to be a resource allocation, a concept
-too weak to support the new paradigm. Rather, we unify
-the traditional job notion with the notion of a resource
-manager instance---an independent set of resource
-manager services. The RM instance must be delegated
+\noindent{\em Unified Job Model: } In the traditional paradigm, 
+a job is simply defined to be a resource allocation. 
+But \flux\ unifies this notion with an independent 
+RJMS instance. Because any \flux\ job has 
+an independent resource and job management services,
+it can recursively accept and schedule jobs and provide its own 
+services to them. 
+The RJMS instance must be delegated
 the main responsibility of managing the resources allocated
-to the job. Then, the unified job model becomes
-the foundation on which to build a hierarchical, 
-resource-management scheme to address the multidimensional
-scale challenge. In addition, an RM instance can
-implement compatibility mode with a particular
-traditional paradigm only over its own allocation, 
-providing a straightforward path to address
-the backward compatibility challenge.
+to its job. But it must allow specialized service
+plug-ins to be instantiated so that these resources
+can be used differently than other resources.  
+This model forms 
+the foundation for a hierarchical,
+multilevel resource management and job scheduling
+with resource subset specialization.
 
 \vspace{1ex}
 \noindent{\em Job Hierarchy Model:} To scale the new paradigm 
-in the scaling limit of the entire computing facility, 
-we must avoid a centralized approach: the new paradigm 
-requires a hierarchical management scheme with a well-balanced, 
-multilevel delegation structure. For this purpose, 
-we use a tree-based job hierarchy model that has 
-many proven advantages for extreme scalability. 
-In this model, a job is only required to manage 
-its children jobs, which would be only a small fraction 
-of the total number of jobs that are run across 
-the entire computing facility. Further, several guiding 
-principles throughout the job hierarchy strike 
+to the entire HPC center, we must avoid a centralized approach. 
+Instead, \flux\ employs a hierarchical resource management 
+and job scheduling by forming a tree-based hierarchy of \flux\ jobs. 
+Several guiding principles throughout the job hierarchy strike 
 a balance between the management responsibility 
-of a parent job and delegation and empowerment 
-of a child job:
+of a parent job and delegation and empowerment of a child job:
 
-\begin{enumerate}
+\begin{itemize}
 \item{Parent bounding rule: the parent job grants 
 and confines the resource allocation of all of its children.}
 
@@ -49,56 +42,72 @@ by the parent, the child job is delegated the ownership
 of the allocation and becomes solely responsible 
 for most efficient uses of the resources.}
 
-\item{Parental consent rule: the child job must ask 
-its parent job when it wants to grow or shrink the resource 
+\item{Parental consent rule: the child job asks 
+its parent when it wants to grow or shrink the resource 
 allocation, and it is up to the parent to grant the request.}
-\end{enumerate}
+\end{itemize}
 
-In general, these rules enforce the first principle 
+This model has many advantages for scalability of both
+resource management and job scheduling. 
+The independent and specialized \flux\ service instance
+of a job becomes only responsible for managing its direct
+child jobs, which would be only a small fraction of
+the total number of jobs at the center. 
+As sibling jobs run simultaneously, their independent
+\flux\ instances will perform concurrent management services.
+
+For example, for job scheduling, this model enables \flux\
+to exploit scheduling parallelism~\cite{Omega,Mesos}.
+A parent scheduler schedules at coarse granularity 
+over a large collection of resources and leases different resource subsets 
+to its children schedulers. 
+At the same time, this will enable Flux to specialize the scheduling behaviors 
+on subsets of resources without having to introduce a
+complex global scheduling policy into the centralized, monolithic scheduler. 
+
+In short, this model enforces the first principle 
 of the new paradigm: imposing highly complex resource bounds 
-to guarantee the highest operational efficiency 
-at any level across the computing facility, while enabling 
+to provide high operational efficiency 
+at any level across the entire center, while enabling 
 most efficient execution and scheduling of the workloads 
 within these bounds. 
-At the same time, this model is the most fundamental 
-design concept, which forms the basis to address 
-many of the design challenges including 
-the {\em multidimensional scale}, {\em rich resource model},
-and {\em dynamic workload} challenges previously described.
+Further, this addresses 
+many of the identified challenges in Section~\ref{label:paradigm} 
+including the {\em multidimensional scale} and 
+{\em diverse/dynamic workload} challenges. 
 
-\vspace{1ex}
+%\vspace{1ex}
 \noindent{\em Generalized Resource Model:} In the traditional 
 paradigm, compute resources are modeled primarily 
-as a collection of compute nodes, a simplistic perspective 
+as a collection of compute nodes. But this is a simplistic perspective 
 ill-suited for the new paradigm. Today's applications 
 are diverse with disparate limiting performance factors 
 beyond floating point computation. 
 Further, computing centers are increasingly concerned 
 about managing new resource types such as power 
 and shared persistent storage. Our generalized resource
-model addresses this need by provding an extensible
+model addresses this need by providing an extensible
 and flexible representation for resources
 and their relationships.
 
-\vspace{1ex}
-\noindent{\em Resource Allocation Elasticity Model:} As our 
+%\vspace{1ex}
+\noindent{\em Multilevel Resource Elasticity Model:} As our 
 applications and their programming models are becoming 
-increasingly dynamic, the new paradigm must support 
+increasingly dynamic, the new paradigm demands 
 an elasticity model where an existing resource allocation 
 can grow and shrink, depending on the current needs 
-of applications and/or the computing facility. 
-
-We support the elasticity model within our job hierarchy 
+of applications and/or the HPC center. 
+\flux\ supports the elasticity model within our job hierarchy 
 framework above: a child job sends a grow or shrink request 
 to its parent, which can go up the job hierarchy 
 until all requisite constraints are known for this request. 
 Also, combining this with the generalized resource model, 
-the elasticity can be expressed for any resource including 
+the elasticity can be expressed for various resource including 
 power consumption. Our elasticity model addresses 
 the {\em dynamic workload} challenge.
 
-\vspace{1ex}
-\noindent{\em Common Scalable Persistent Communication Infrastructure Model:} 
+%\vspace{1ex}
+\noindent{\em Common Scalable Communication Infrastructure Model:} 
 Our scalability strategy with respect to a large number 
 of compute nodes is to provide a common scalable communication 
 framework within each job. When a job is created, a secure, scalable 
@@ -109,13 +118,13 @@ the child job with rapid creation of its own session.
 
 A communication session is only aware of its parent 
 and child and passes the limited set of control information 
-through this communication channel. Thus, this model 
+through its communication channel. Thus, this model 
 enables highly scalable communication within a job, while 
 limiting communications between jobs, addressing 
 both the {\em multidimensional scale} as well as security issues.
 Further, this backbone per-job communication network 
 supports well-known bootstrap interfaces 
 for distributed programs including many MPI implementations 
-as well as run-time tools.  This provides tightly integrated support
-for the development and use of scalable run-time tools
-and research, which can have a large impact on user productivity.
+as well as run-time tools. This provides tightly integrated support
+for the development and use of scalable run-time tools, which 
+can have a large impact on user productivity.
