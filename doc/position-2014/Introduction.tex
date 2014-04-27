@@ -1,54 +1,65 @@
 \section{Introduction}
 
-Resource and job management software (RJMS) is critical
-for high performance computing (HPC).
+Scalable Resource and Job Management Software (RJMS) is critical
+for High Performance Computing (HPC).
 It is the centerpiece that enables efficient
 execution of HPC applications while providing
-the computing facility with the main means
-to maximize the utilization of its diverse array 
-of computing resources~\cite{GeorgiouThesis}.
-However, several growing trends make even
-best-in-breed RJMS systems increasingly
-ineffective in dealing with the diversity and size 
-of resources fielded for HPC centers.
-As numbers and types of compute resources
-continue to grow, the key management challenges 
-traditionally associated with only a few individual 
-extreme-scale machines~\cite{sequoia,titan} 
-quickly permeate through all computing resources 
-(e.g., commodity Linux clusters) 
-sited at a center. 
-RJMS now must provide all of the resources at the center
-with extreme scalability, low noise, fault tolerance, 
-and heterogeneity management delivered 
-within increasingly stricter power bounds.
+the compute center with the means
+to maximize the utilization of its diverse  
+ computing resources~\cite{GeorgiouThesis}.
+However, current state of the art RJMS systems 
+are becoming increasingly
+ineffective in dealing with the growing diversity and size 
+of resources fielded in HPC centers today. Large
+scale resources are no longer limited to  
+%As numbers and types of compute resources
+%continue to grow, the key management challenges 
+%traditionally associated with only 
+a few individual 
+extreme-scale machines like Sequoia (LLNL)~\cite{sequoia} or Titan (ORNL)~\cite{titan}, 
+%quickly 
+but are becoming commonplace through all computing resources sited at a center, incl.
+commodity Linux clusters.
+A modern RJMS must provide access to all of the resources at the center,
+while maintaining
+scalability, low noise, fault tolerance, and enforcing global constraints, such as power.
+%and heterogeneity management delivered 
+%within increasingly stricter power bounds.
 
 In addition, greater difficulties in code development
-on larger systems impose increasingly challenging 
-requirements on the RJMS. Without adequate
-RJMS support, debugging, tuning, testing, and verification
-of applications have become too difficult and 
-time-consuming for end-users~\cite{STAT,SPINDLE,PRUNER,SCR,launchmon}.
-Next-generation code development environments
-require the RJMS to provide effective mechanisms
-to ease this user burden with features that support 
-the reproducible results of program execution,
-provide accurate correlations between user-level errors
-and system-level events,
-and facilitate integration and development 
-of a rich set of scalable tools.
+on larger systems impose increasingly challenging
+%requirements on the RJMS, 
+and requires tools for 
+debugging, tuning, testing, and verification
+%of applications have become too difficult and 
+%time-consuming for end-users
+%Next-generation code development environments
+%require the RJMS to provide effective mechanisms
+%to ease this user burden with features that support 
+%the reproducible results of program execution,
+as well as new techniques for 
+%provide 
+accurate correlations between user-level errors
+and system-level events.
+These tools
+require adequate RJMS support~\cite{STAT,SPINDLE,PRUNER,SCR,launchmon}
+for launching of daemons, allocation of analysis resources, or the ability
+for secure third party access to running jobs.
+%,
+%and facilitate integration and development 
+%of a rich set of scalable tools.
 Unless the RJMS can effectively
-address these shortcomings, HPC centers and their users 
+address these requirements, HPC centers and their users 
 can suffer significant productivity losses.
 
 The traditional resource and job management paradigm
-for large HPC centers organize the resources sited
+for large HPC centers organizes the resources sited
 at a center in a static and flat hierarchy. Typically, it 
-runs an RJMS instance~\cite{Jette02slurm} to manage an individual cluster
+runs an RJMS instance, like SLURM~\cite{Jette02slurm}, to manage an individual cluster
 and those instances are connected together by 
-grid software~\cite{MOAB,PSBPro,LSF}.
-While simple, a greater interplay 
-among various classes of clusters across the center
+grid software, like MOAB~\cite{MOAB}, PSBPro~\cite{PSBPro} or LSF~\cite{LSF}.
+While simple, the increasing interplay 
+between various compute resources across the center
 are already making this paradigm increasingly 
 inflexible and ineffective. 
 For example, the current paradigm cannot effectively
@@ -60,53 +71,78 @@ hierarchy, overlapping I/O bursts coming from only a few
 unrelated jobs can randomly disrupt the entire center~\cite{SCR,SPINDLE}. 
 In addition, with a flat hierarchy, imposing complex 
 resource constraints at various levels at the center
-is becoming increasingly difficult. 
+is becoming increasingly intractable. 
 %Avoiding any significant site-wide bottleneck
 %requires the RJMS to schedule the job to all dependent
 %resources that often span the boundaries 
 %of a single cluster.
 
-
-In this paper, we argue for a new paradigm that can
-effectively address the resource and job management 
-challenges that large HPC centers are increasingly facing.
-We argue that the new paradigm must increase its purview 
-to manage resources across the entire center under
-one common RJMS framework, and 
-be able to (co-)schedule jobs to various types of resources.
-We argue that the new paradigm must facilitate 
-scheduler parallelism~\cite{Omega,Mesos}. Further, it must
+To address these challenges we need 
+%In this paper, we argue for 
+a new paradigm for RJMS that enables centers to manage
+all compute, storage, and visualization resources together, 
+that is capable of enforcing global and local resource constraints
+and that
+% that can
+%effectively address the resource and job management 
+%challenges that large HPC centers are increasingly facing.
+%We argue that the new paradigm 
+%must increase its purview 
+%to manage resources across the entire center under
+%one common RJMS framework, and 
+%be able to 
+is capable of 
+(co-)scheduling jobs to various types of resources.
+The only way to achieve this with scalability in terms of both the size of individual resources
+as well as the total number of resources, any new RJMS system must be able to
+%Further it mustWe argue that the new paradigm must 
+facilitate 
+scheduler parallelism~\cite{Omega,Mesos}, as well as must
 provide the parallelism through hierarchical, multilevel 
-scheduling schemes with support for arbitrary numbers of levels, and 
-be capable of specializing each level.
+scheduling schemes with support for arbitrary numbers of levels.
+The latter also requires capabilities for customization or specialization (in tems
+of policy, access control, ...) at any level of the hierarchy based on user requests.
+%, and 
+%be capable of specializing each level.
 
-It will be a long journey to fully implement this new paradigm. 
-But we have made a few significant steps to embody the paradigm:
-we started to develop an open-source RJMS framework, \flux,
-and to explore its run-time core components.
-Thus, this paper also presents our early explorations
-of two core run-time elements: 
-communication framework termed the Comms Message Broker (CMB)
+In this paper we describe \flux, a new open source RJMS framework that implements
+this new paradigm. We will present
+its design and run-time architecture and show how it will be capable of providing
+the necessary RJMS capabilities for next generation systems and centers. To
+demonstrate its feasibility, we have prototyped and evaluated two of its core run-time components:
+%
+%We have implemented key aspects
+%of the \flux 
+%
+%
+%It will be a long journey to fully implement this new paradigm. 
+%But we have made a few significant steps to embody the paradigm:
+%we started to develop an open-source RJMS framework, \flux,
+%and to explore its run-time core components.
+%Thus, this paper also presents our early explorations
+%of two core run-time elements: 
+the communication framework termed the Comms Message Broker (CMB)
 and workload run-time services for efficient, interoperable
-launching and organizing of the distributed processes.
+launching and organizing of the distributed processes --- 
 CMB represents a novel back-bone overlay network for \flux,
 which can replace all the redundant and independent
 daemon infrastructures that currently exist in a typical cluster.
 
 This paper makes the following contributions:
 \begin{itemize}
-\item{Emerging resource and job management challenges that demand a new paradigm for large HPC centers;}
-\item{The design concept of \flux\ emboding this paradigm;}
-\item{Core run-time components of \flux\ as enablers of this paradigm;}
+\item{We describe, based on experience in one of the largest HPC compute centers world-wide, the emerging resource and job management challenges that demand a new paradigm for large HPC centers;}
+\item{We present the design and run-time architecture of \flux, a novel RJMS system that embodies this new paradigm;}
+\item{We evaluate two of the core run-time components of \flux to demonstrate the feasibility of our approach.}
 \end{itemize}
 
 The results of our performance evaluation 
-and performance model show that KVS and CMB provide 
-strong and predictable scaling properties.
+and performance models show that both KVS and CMB provide 
+strong and predictable scaling properties and provide a scalable foundation 
+for the \flux architecture.
 %Further, our case study on integrating various key run-time software software
 %programs indicate that \flux's run-time elements 
 %provide these programs with 
 %easy integration and interoperability.
-These results continue to guide our design choices
-as we progressively realize our vision. 
+%These results continue to guide our design choices
+%as we progressively realize our vision. 
 

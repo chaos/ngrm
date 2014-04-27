@@ -1,60 +1,52 @@
-\section{A new management paradigm for HPC}
+\section{A New Management Paradigm for HPC}
 \label{label:paradigm}
-A HPC center provides a large array of computing
+HPC centers typically provide a wide range of 
 platforms on which scientific applications perform
 computations.
-Here, an RJMS system is responsible for efficiently delivering 
+The RJMS system is responsible for efficiently delivering 
 compute cycles of these platforms
-to multiple users of the applications. 
-Thus, the RJMS matches users' jobs with the available 
+to multiple users submitting jobs to run their applications. 
+To enable this, the RJMS matches users' job request with the available 
 resources and provides efficient functions 
 for building, submitting, launching and executing, 
 and monitoring jobs~\cite{GeorgiouThesis}. 
 Typically, an HPC center runs an RJMS instance~\cite{Jette02slurm} 
-to manage an individual system (e.g., cluster). Often,
-grid software ties these instances together. 
+to manage an individual system (e.g., cluster) and 
+grid software often ties these instances together. 
 
 However, several growing trends present major challenges 
 to the current management paradigm. 
-First, most systems sited at the center are growing larger 
+First, systems sited at one center are growing larger 
 and types of resources are becoming increasingly diverse~\cite{GeorgiouThesis}. 
 %The RJMS must now provide  
 %extreme scalability, low
 %noise, fault tolerance, and heterogeneity management
 %to most of the resources sited across the entire center. 
-Second, with these trends, interplays between 
+Second, interplays between 
 various classes of resources
 (e.g., between compute clusters and a global file system)
 are becoming more complicated and disruptive~\cite{SCR,SPINDLE}. 
 Third, resource constraints are also becoming increasingly
 complex in a multidimensional and hierarchical fashion~\cite{power-overprovision}
-(e.g., dynamic power capping at the level of compute racks).
-Further, greater difficulties in code development
+(e.g., dynamic power capping at the level of systems, compute racks, and/or nodes).
+Further, the need for code development tools and their requirements on tool launching and job access
 impose challenging requirements on the RJMS~\cite{STAT,SPINDLE,PRUNER,SCR,launchmon}.
 Finally, the workloads themselves are becoming 
-diverse, dynamic, and large.
+diverse, dynamic, and large, and are moving away from individual monolithic jobs. Instead
+ensembles of jobs, e.g., for Uncertainty Quantification or Scalebriding  Applications, are
+becoming more dominant.
 
-To address the issues stemming from these trends effectively,
+To address the issues effectively,
 large HPC centers demand a new resource and job management paradigm.
 The new paradigm must increase its purview
 to manage resources across the entire center
-{\bf under one common RJMS framework}.
-This would allow the center to (co-)schedule jobs 
-to various types of resources and 
+{\bf under one common RJMS framework}. Only this allows
+%This would allow the 
+centers to (co-)schedule jobs 
+to various types of resources and to
 provide much richer provenance on jobs (e.g., correlation between
-a user-level error and other system activities).
-
-Undoubtedly, the new paradigm will face unprecedented scale challenges
-in job scheduling. Thus, it must facilitate scheduler
-parallelism~\cite{Omega,Mesos} through hierarchical,
-multilevel resource management and job scheduling.
-In this multilevel scheme, higher-level schedulers
-should allow a site to impose site-wide policies, contracts,
-and constraints while lower-level schedulers should allow
-efficient use of any subsets of resources in accordance with
-workload types.
-The new paradigm must dynamically support arbitrary levels in
-this resource and job hierarchy.
+a user-level error and other system activities). This global view, however,
+creates a series of challenges a new RJMS must overcome:
 
 %It is important to note that all of these must 
 %be enabled by one common RJMS framework. 
@@ -70,18 +62,20 @@ this resource and job hierarchy.
 %in a highly scalable, fault-tolerant, secure and customizable
 %manner.
 
-We realize that embodying the new paradigm is non-trivial, as
-the following characterizes the challenges it must address.
+%We realize that embodying the new paradigm is non-trivial, as
+%the following characterizes the challenges it must address.
 
-\noindent{\em Multidimensional scale challenge: } 
+\noindent{\em Challenge 1: Multidimensional Scaling --- } 
 The new paradigm requires that the RJMS can impose
 complex, multidimensional resource bounds at any scale, 
 from the center-wide level, down to the level of individual processes,
 and enable the most efficient execution and
 scheduling of workloads within these bounds.
-This imposes unprecedented scale challenges. 
-We generally characterize this challenge 
-as the {\em multidimensional scale} challenge. The challenges include
+This imposes unprecedented scale challenges
+in multiple dimensions,
+%We generally characterize this challenge 
+%as the {\em multidimensional scale} challenge. The challenges
+% include
 supporting extreme scalability, addressing noise as concurrency
 increases, and managing a drastically increased amount of
 run-time information that must be monitored, traced, and stored.
@@ -89,41 +83,44 @@ The new paradigm must efficiently handle increased scale in
 numbers of resources as well as jobs and other dimensions 
 of RJMS data.
 
-\noindent{\em Diverse workload challenge: }
+\noindent{\em Challenge 2: Diverse workloads --- }
 HPC applications are known to have disparate performance 
 limiting factors. This requires
-the new paradigm to have a rich resource model.
-This includes a representation for diverse
+the new paradigm to have a rich resource model, including
+the 
+%This includes a 
+representation for diverse
 types of resources such as file systems, networks, visualization
-hardware, and heterogeneous compute engines, in addition to
-traditional clusters.
+hardware, and heterogeneous compute engines.
 With a richer resource model, the RJMS will be capable of imposing
 complex, multidimensional resource bounds, as opposed to the
-simplistic traditional resource model that is fundamentally based on
-flat lists of nodes.
-With the ability to model sophisticated resource relationships,
-the new paradigm will be able to schedule and
+simplistic traditional resource model that is fundamentally based on a
+flat list of nodes, allowing it to 
+%With the ability to model sophisticated resource relationships,
+%the new paradigm will be able to schedule and
 allocate resources tailored to the disparate limiting
 factors of HPC applications.  
 
-\noindent{\em Dynamic workload challenge: }
-A third requirement of the new paradigm is that resource allocations
-must be elastic. HPC applications typically have different
-phases with disparate performance-limiting factors;
-it must be able to grow and shrink its resource allocation
-dynamically. Further, different resource types have different
+\noindent{\em Challenge 3: Dynamic Workloads --- }
+Resource allocations
+must be elastic, i.e., resource allocations must be able to grow and shrink
+dynamically. This is necessary to support HPC applications with different
+phases with disparate performance-limiting factors.
+Different resource types have different
 elastic properties 
-(e.g., power is a much more elastic resource than compute nodes).
-HPC applications and their programming models are
-becoming increasingly dynamic with different multi-resource requirements
-at different phases. 
-The paradigm must support multiple levels of elasticity~\cite{Convergence} 
+(e.g., power is a much more elastic resource than compute nodes)
+restricting decision points and allocation granularity.
+%HPC applications and their programming models are
+%becoming increasingly dynamic with different multi-resource requirements
+%at different phases. 
+One consequence of this its that the RJMS must 
+support multiple levels of elasticity~\cite{Convergence} 
 as a function of dynamically changing performance limiters
 as well as their limiting resource types---e.g., 
 rigid vs. moldable vs. malleable scheduling 
 against different workload and resource types.
 
-\noindent{\em Productivity challenge: }
+\noindent{\em Challenge 4: Productivity --- }
 The new paradigm must address increasing complexities
 in code development and system administration by facilitating
 the creation of more effective diagnostic and analysis tools.
@@ -137,8 +134,12 @@ Better tools will lead to higher productivity for all
 stakeholders, including end users.
 %We characterize this design challenge as the {\em productivity challenge}.
 
-\noindent{\em Other challenges: }
-We have considered additional challenges. For example,
+\noindent{\em System Challenges --- }
+In addition to these main requirements that come from the user side
+of the RJMS, we also face internal challenges that need to be hidden
+from the user. 
+%We have considered additional challenges. 
+For example, in a global model,
 the risk of higher downtime costs arises in a more global model.
 If the RJMS is not designed adequately, a downtime could negatively
 impact the availability of a large portion of the center's
@@ -150,3 +151,20 @@ and backwards compatibility.
 %will be addressed in our future work.
 
 %
+
+To address these challenges, %Undoubtedly, such a new paradigm will face unprecedented scaling challenges.
+%in job scheduling. a RJMS 
+%Thus, it 
+must facilitate scheduler
+parallelism~\cite{Omega,Mesos} through hierarchical,
+multilevel resource management and job scheduling.
+In this multilevel scheme, higher-level schedulers
+should allow a site to impose site-wide policies, contracts,
+and constraints while lower-level schedulers should allow
+efficient use of any subsets of resources in accordance with
+workload types.
+The new paradigm must dynamically support arbitrary levels in
+such a resource and job hierarchy and be able to impose
+different constraints at each level.
+
+

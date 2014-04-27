@@ -4,7 +4,7 @@ Key-Value Stores (KVS) have become ubiquitous building blocks in large-scale
 Internet services but have been underutilized in HPC~\cite{Wang:2013:USE:2503210.2503239}.
 We determined that a KVS would be a
 useful building block for our new system and prototyped several designs.
-Early \flux\ KVS's were based on Redis~\cite{Redis} and Twitter's
+Early \flux KVS's were based on Redis~\cite{Redis} and Twitter's
 twemproxy~\cite{Twemproxy} for sharding and were used mainly to implement
 PMI~\cite{PMI2} under MPI.  More recently our KVS has been employed 
 in addition for configuration, monitoring, resource descriptions, and
@@ -17,12 +17,12 @@ of our slave caches has the following properties, using Vogels'
 taxonomy~\cite{Vogels:2009:EC:1435417.1435432}.
 
 \begin{itemize}
-\item{{\em causal consistency}:  If process A communicates with process B
+\item{{\em Causal consistency}:  If process A communicates with process B
 that it has updated a data item (passing a {\em store version} in that
 message), a subsequent access by process B will return the updated value.}
-\item{{\em read-your-writes consistency}:  A process having updated a
+\item{{\em Read-your-writes consistency}:  A process having updated a
 data item, never accesses an older value.}
-\item{{\em monotonic read consistency}:  If a process has seen a particular
+\item{{\em Monotonic read consistency}:  If a process has seen a particular
 value for an object, any subsequent accesses will never return previous values.}
 \end{itemize}
 

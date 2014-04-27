@@ -1,9 +1,9 @@
 \subsection{Communication Message Broker}
 
 A communication framework supports our hierarchical job model
-by establishing a {\em comms session} to contain each \flux\ instance
+by establishing a {\em comms session} to contain each \flux instance
 and provide a foundation for the distributed components upon which
-\flux\ is built.
+\flux is built.
 This framework enables secure, scalable communication
 within a comms session, limits communication between sessions,
 and allows new comms sessions to be created, resized, destroyed,
@@ -66,7 +66,8 @@ the services listed in Table~\ref{tab:cmbplugins}.
 Each embodies an active topic for study and experimentation. % by the \flux\ team.
 
 In addition to CMB plugins, external programs can communicate with the CMB
-via a UNIX domain socket.  A {\tt flux} utility wraps up two dozen or so
+via a UNIX domain socket.  A {\tt flux} utility provides command line access
+to about two dozen
 modular sub-commands used to interact with and test the CMB plugins.
 
 \begin{table}
@@ -93,13 +94,13 @@ log & Log messages are reduced and filtered before being placed in
 mon & Lua scripts stored in the KVS activate heartbeat-synchronized sampling.
 	Samples are reduced and stored in the KVS.\\
 \hline
-group & \flux\ groups define and manage collection of processes that can
+group & \flux groups define and manage collection of processes that can
 	participate in collective operations.\\  
 \hline
-barrier & Collective barriers provide synchronization across \flux\ groups. \\
+barrier & Collective barriers provide synchronization across \flux groups. \\
 \hline
 kvs & A distributed key-value store provides a scalable scratchpad
-	for \flux\ and other tools operating within the comms session.\\
+	for \flux and other tools operating within the comms session.\\
 \hline
 wrexec & Remote processes can be launched in bulk, monitored,
 	receive signals, and have standard I/O captured in the KVS.\\
@@ -143,14 +144,15 @@ to use to reach the destination. If the downstream overlay is selected,
 the routing table entry determines which branch of the tree to use.
 In this manner an RPC can take place between any two ranks in the session.
 
-As our designs and prototypes for basic \flux\ building blocks evolve,
-the CMB evolves to provide necessary services.  For example, the CMB API
-now has both C and Lua~\cite{LuaBook} bindings and a custom event reactor interface in
-response to the experience of 
-%meeting a recent milestone to 
-launching MPI jobs and co-locating distributed debuggers. Some of the building
-blocks built on CMB services are described
-in the next section.
+%This can only raise questions and we need to cut.
+%As our designs and prototypes for basic \flux building blocks evolve,
+%the CMB evolves to provide necessary services.  For example, the CMB API
+%now has both C and Lua~\cite{LuaBook} bindings and a custom event reactor interface in
+%response to the experience of 
+%%meeting a recent milestone to 
+%launching MPI jobs and co-locating distributed debuggers. Some of the building
+%blocks built on CMB services are described
+%in the next section.
 %
 %, are independently undergoing design iteration.
 %We expect to continue evolving the CMB prototype for several more months until
