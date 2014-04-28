@@ -33,8 +33,9 @@ Further, the need for code development tools and their requirements on tool laun
 impose challenging requirements on the RJMS~\cite{STAT,SPINDLE,PRUNER,SCR,launchmon}.
 Finally, the workloads themselves are becoming 
 diverse, dynamic, and large, and are moving away from individual monolithic jobs. Instead
-ensembles of jobs, e.g., for Uncertainty Quantification or Scalebriding  Applications, are
-becoming more dominant.
+ensembles of jobs, e.g., for Uncertainty Quantification 
+%DONG: We need a refernece to use Scalebriging Application
+or Scalebriding Applications, are becoming more dominant.
 
 To address the issues effectively,
 large HPC centers demand a new resource and job management paradigm.
@@ -45,7 +46,7 @@ to manage resources across the entire center
 centers to (co-)schedule jobs 
 to various types of resources and to
 provide much richer provenance on jobs (e.g., correlation between
-a user-level error and other system activities). This global view, however,
+a user-level error and other system activities). The new paradigm, however,
 creates a series of challenges a new RJMS must overcome:
 
 %It is important to note that all of these must 
@@ -140,11 +141,12 @@ of the RJMS, we also face internal challenges that need to be hidden
 from the user. 
 %We have considered additional challenges. 
 For example, in a global model,
-the risk of higher downtime costs arises in a more global model.
-If the RJMS is not designed adequately, a downtime could negatively
+the risk of higher downtime costs arises. 
+%in a more global model.
+If the RJMS is inadequately designed, a downtime could negatively
 impact the availability of a large portion of the center's
-resources. Thus, the RJMS must be tolerant of hardware and software
-faults and failures with no single point of failure and must
+resources. Thus, it must be tolerant of hardware and software
+faults and failures with no single point of failure and 
 also support live software upgrades. 
 Other challenges include security, integration risk, 
 and backwards compatibility. 
@@ -155,16 +157,16 @@ and backwards compatibility.
 To address these challenges, %Undoubtedly, such a new paradigm will face unprecedented scaling challenges.
 %in job scheduling. a RJMS 
 %Thus, it 
-must facilitate scheduler
+the new RJMS must facilitate scheduler
 parallelism~\cite{Omega,Mesos} through hierarchical,
 multilevel resource management and job scheduling.
-In this multilevel scheme, higher-level schedulers
+In this scheme, higher-level schedulers
 should allow a site to impose site-wide policies, contracts,
 and constraints while lower-level schedulers should allow
 efficient use of any subsets of resources in accordance with
 workload types.
 The new paradigm must dynamically support arbitrary levels in
-such a resource and job hierarchy and be able to impose
+such a resource and job hierarchy with an ability to impose
 different constraints at each level.
 
 

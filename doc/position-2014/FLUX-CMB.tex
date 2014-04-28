@@ -68,7 +68,7 @@ Each embodies an active topic for study and experimentation. % by the \flux\ tea
 In addition to CMB plugins, external programs can communicate with the CMB
 via a UNIX domain socket.  A {\tt flux} utility provides command line access
 to about two dozen
-modular sub-commands used to interact with and test the CMB plugins.
+modular sub-commands used to interact with the CMB plugins.
 
 \begin{table}
 \centering
@@ -107,9 +107,10 @@ wrexec & Remote processes can be launched in bulk, monitored,
 \hline
 resrc & Resources are enumerated in the KVS and allocated
 	when the scheduler runs a lightweight job. \\
-\hline
-sched & Lightweight job requests are queued in the KVS, assigned
-	resources, and launched. \\
+% LWJ is not introduced
+%\hline
+%sched & Lightweight job requests are queued in the KVS, assigned
+%	resources, and launched. \\
 \hline
 \end{tabular}
 \caption{Prototyped CMB plugins}

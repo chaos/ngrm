@@ -1,8 +1,8 @@
 \section{Conceptual design of \flux}
 \label{models}
 
-In this paper we present \flux, a novel open source RJMS framework that
-targets the paradigm discussed in the previous section. In the following
+In this paper we present \flux, a novel open-source RJMS framework that
+targets the paradigm discussed above. In the following
 we will describe its
 %
 %Flux is the open-source RJMS framework we are actively
@@ -102,7 +102,7 @@ Further, computing centers are increasingly concerned
 about managing new resource types such as power 
 and shared persistent storage. \flux therefore introduces a generalized resource
 model that it is extensible and covers any kind of resource and their relationships. This enables scheduling
-decisions based on any number of resources.
+decisions based on many types of resources.
 
 %addresses this need by providing an extensible
 %and flexible representation for resources
@@ -121,7 +121,7 @@ to its parent, which can be aggregated up the job hierarchy
 until all requisite constraints are known for this request. 
 Also, combining this with the generalized resource model, 
 the elasticity can be expressed for any resource including 
-power consumption. 
+power. 
 
 %Our elasticity model addresses 
 %the {\em dynamic workload} challenge.
@@ -148,5 +148,6 @@ Further, this per-job backbone communication network
 supports well-known bootstrap interfaces 
 for distributed programs including many MPI implementations 
 as well as run-time tools. This provides tightly integrated support
-for the development and use of scalable run-time tools, which 
-can have a large impact on user productivity.
+for the development and use of scalable run-time tools.
+%, which 
+%can have a large impact on user productivity.

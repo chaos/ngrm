@@ -3,14 +3,22 @@
 Key-Value Stores (KVS) have become ubiquitous building blocks in large-scale
 Internet services but have been underutilized in HPC~\cite{Wang:2013:USE:2503210.2503239}.
 We determined that a KVS would be a
-useful building block for our new system and prototyped several designs.
-Early \flux KVS's were based on Redis~\cite{Redis} and Twitter's
-twemproxy~\cite{Twemproxy} for sharding and were used mainly to implement
-PMI~\cite{PMI2} under MPI.  More recently our KVS has been employed 
-in addition for configuration, monitoring, resource descriptions, and
-standard I/O streams, and has been rewritten from scratch to meet these
-new demands and obtain the most benefit from our persistent CMB networks.
+essential building block for our new system.
+After evaluating several prototypes, our current KVS is designed
+to exploit our persistent CMB networks so as to 
+support various HPC access patterns such as
+MPI bootstrapping through well-known interfaces (e.g., PMI~\cite{PMI2}),
+process monitoring, standard I/O streams, resource descriptions and
+configurations. 
 
+%
+%Early \flux KVS's were based on Redis~\cite{Redis} and Twitter's
+%twemproxy~\cite{Twemproxy} for sharding and were used mainly to implement
+%PMI~\cite{PMI2} under MPI.  More recently our KVS has been employed 
+%in addition for configuration, monitoring, resource descriptions, and
+%standard I/O streams, and has been rewritten from scratch to meet these
+%new demands and obtain the most benefit from our persistent CMB networks.
+%
 Our current prototype stores JSON values under a hierarchical key space
 with a single master node and multiple caching slaves.  The weak consistency
 of our slave caches has the following properties, using Vogels'
@@ -28,8 +36,9 @@ value for an object, any subsequent accesses will never return previous values.}
 
 We achieve these properties with a simple design based on hash trees
 and content-addressable storage, borrowing ideas from
-ZFS~\cite{Bonwick03thezettabyte}, git~\cite{Chacon:2009:PG:1618548}, and
-Venti~\cite{Quinlan:2002:VNA:645371.651321}.
+ZFS~\cite{Bonwick03thezettabyte} and git~\cite{Chacon:2009:PG:1618548}.
+%, and
+%Venti~\cite{Quinlan:2002:VNA:645371.651321}.
 JSON objects are placed in a content-addressable
 {\em object store}, hashed by their SHA1 digests.
 Hierarchical key names are broken up into path components that reference
@@ -99,7 +108,7 @@ Since both new and old objects coexist in the caches, the switch from old
 to new root is atomic.
 {\tt kvs\_get\_version ()} and {\tt kvs\_wait\_version ()} are available
 for causal consistency as described above.
-{\tt kvs\_fence ()} commits for a group of processes collectively,
+{\tt kvs\_fence ()} commits for a group of processes collectively
 through the internal use of a collective barrier.
 
 %and slight modification to the commit logic on the master.
@@ -133,12 +142,12 @@ through the internal use of a collective barrier.
 {\tt kvs\_get (key)} recursively looks up the key starting with the
 current root reference, faults in any missing objects
 through the tree of slave caches, and returns the terminal object.
-{\tt kvs\_watch (key, callback)} is a get variant which registers a
+{\tt kvs\_watch (key, callback)} is a {\tt get} variant which registers a
 callback to be triggered whenever the value of {\em key} changes.
-It accomplishes this by internally by performing a get on the watched
+It accomplishes this by internally performing a {\tt get} on the watched
 value in response to each root update, comparing the new
 and old values, and calling the callback if they are different.
-Due to the internal hash tree organization, a watched directory changes
+Due to our hash-tree organization, a watched directory changes
 if keys under it at any path depth change.
 
 %The theoretical performance of our KVS prototype is influenced by
