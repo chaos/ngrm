@@ -1,7 +1,7 @@
 \subsection{Performance Results and Analysis}
 \label{results}
 Of tens of thousands of our sampling runs, we find that the fully populated
-cases---i.e. both producer and consumer counts become equal to the total
+cases---i.e., both producer and consumer counts become equal to the total
 process count---are most revealing. In particular, we carefully analyze 
 the maximum latency of each of the main phases of KAP for these cases 
 because this metric represents the critical path of the performance of
@@ -189,5 +189,6 @@ also roughly double according to
 \end{equation}
 With the current scheme, the only way to gain true logarithmic
 scaling is when $G$ stays constant regardless of scale. 
-In a later section, we will discuss some of our plans 
-to exploit the understanding we gained from the evaluation. 
+%MS: don't think this is true anymore
+%In a later section, we will discuss some of our plans 
+%to exploit the understanding we gained from the evaluation. 

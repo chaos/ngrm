@@ -11,9 +11,9 @@ point solutions. In fact, \flux\ came out of real-world needs
 for a comprehensive production open-source RM that embodies a new paradigm. 
 
 HPC trends increasingly motivate scalable KVS implementations 
-like ours. Wang et al. proposed using a distributed KVS 
+like ours. Wang et al. proposed a distributed KVS 
 as the basis for HPC tools and services to encapsulate
-complexity of distributed services in the KVS~\cite{Wang:2013:USE:2503210.2503239}.
+complexity of distributed services~\cite{Wang:2013:USE:2503210.2503239}.
 %
 %, thereby simplifying the
 %tools and services~\cite{Wang:2013:USE:2503210.2503239}.
@@ -25,14 +25,14 @@ scalability of a traditional RM paradigm with new scalable services,
 ours are built specifically to support the new paradigm. 
 
 We also evaluated Redis~\cite{Redis} and twemproxy~\cite{Twemproxy}
-as part of our early KVS investigations.
+as candidates for our KVS investigations.
 In particular, Redis cluster~\cite{RedisClusterTut,RedisClusterSpec} 
 includes many desired properties such as 
 sharding, re-sharding, replication, and failover.
 However, their design points are not optimized
-for HPC workloads which often feature synchrony and coordination. 
-Our consistency model and mechanisms such as the collective fence 
-specifically optimized for HPC.
+for HPC workloads which feature frequent synchrony and coordination. 
+%Our consistency model and mechanisms such as the collective fence 
+%specifically optimized for HPC.
 
 
 %There is no proxy; clients connect directly to the server

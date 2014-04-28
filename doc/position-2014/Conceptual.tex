@@ -22,14 +22,16 @@ or that can
 %an independent resource and allows it to 
 run its own job management services,
 which then can recursively accept and schedule jobs and provide its own 
-services to them. To provide the necessary flexibility,
+services to them. 
+In the following we will refer to this simply as a \flux job or just job.
+To provide the necessary flexibility,
 %The 
 each RJMS instance 
 %must be delegated
 %the main responsibility of managing the resources allocated
 %to its job. But it 
 allows specialized service
-plug-ins to be instantiated so that the resources managed by the instance
+plug-ins to be instantiated so that the resources managed by the job
 can be used differently than other resources (in terms of security, scheduling policy, or resource constraints).
 This model forms 
 the foundation for a hierarchical,

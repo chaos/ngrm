@@ -1,6 +1,10 @@
 %\subsection{KVS Access Patterns (KAP) Tester}
-To examine the performance of \flux's run-time system,
-we developed a tester called KVS Access Patterns (KAP).
+We currently have prototypes for CMB and KVS implemented, and we
+will, in the following, evaluate their performance and scalability
+%To examine the performance of \flux's run-time system,
+%we developed 
+using
+a dedicated test called KVS Access Patterns (KAP), which allows us to stress both the KVS abstraction as well as the underlying CMB communication.
 %\begin{figure}
 %  \centering
 %  \includegraphics[scale=0.45]{kaptester}
@@ -16,8 +20,9 @@ and a configurable number of consumers to read these
 objects after ensuring the consistent KVS state.
 
 In addition to producer and/or consumer counts,
-KAP provides a range of parameters that can affect performance.
-Among them include the value size (of key-value objects),
+KAP provides a range of parameters that can affect performance, including
+%Among them include 
+the value size (of key-value objects),
 the number of objects to put,
 the number of objects to get, objects access 
 patterns (through different striding), and
@@ -29,7 +34,7 @@ into a set of nodes in which a CMB session had been established.
 They are assigned ranks such that consecutive rank
 processes are distributed to consecutive nodes.
 The rank processes determine their roles based
-on the command line arguments and issue a
+on the command line arguments (either producer or consumer) and issue a
 \flux\ collective barrier to begin to play their roles
 simultaneously.
 
