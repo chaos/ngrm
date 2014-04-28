@@ -7,8 +7,8 @@ including production solutions such as SLURM~\cite{Jette02slurm},
 LSF~\cite{LSF}, Moab~\cite{MOAB}, 
 PBS Pro~\cite{PSBPro}, LoadLeveler~\cite{LL}
 and Condor~\cite{Litzkow88}.
-To the best of our knowledge, \flux is a novel open-source 
-effort that tackles emerging HPC resource management challenges 
+To the best of our knowledge, however, \flux represents a novel
+paradigm that tackles emerging HPC resource management challenges 
 by raising the RJMS's purview to the entire center 
 under one common software framework. 
 
@@ -23,11 +23,11 @@ such as Apache Mesos~\cite{Mesos} and many emerging
 grid schedulers~\cite{MultilevelGrid,Oar} 
 take advantage of two-level scheduling strategies.
 However, these approaches are neither optimized for HPC workloads 
-and nor well suited for large HPC centers. 
+nor well suited for large HPC centers. 
 Scales of a large HPC center demand a deeper 
-and dynamic resource management and scheduler hierachy 
-with an ability to impose various policies and
-constraints at various levels in this hierachy.
+and dynamic levels in the resource management 
+and scheduler hierachy with an ability to impose constraints 
+at various levels in this hierachy.
 
 HPC trends increasingly motivate scalable KVS implementations 
 like ours. Wang et al. proposed a distributed KVS 
@@ -42,7 +42,6 @@ built on ZHT~\cite{Li:2013:ZLR:2510661.2511401}.
 While existing KVS work takes an incremental approach of improving 
 scalability of a traditional RJMS paradigm with new scalable services,
 ours are built specifically to support the new paradigm. 
-
 We also evaluated Redis~\cite{Redis} and twemproxy~\cite{Twemproxy}
 as part of our early KVS investigations.
 %In particular, Redis cluster~\cite{RedisClusterTut,RedisClusterSpec} 
