@@ -7,7 +7,7 @@ essential building block for our new system.
 After evaluating several prototypes, our current KVS is designed
 to exploit our persistent CMB networks so as to 
 support various HPC access patterns such as
-MPI bootstrapping through well-known interfaces (e.g., PMI~\cite{PMI2}),
+MPI bootstrapping through well-known interfaces (e.g., PMI),
 process monitoring, standard I/O streams, resource descriptions and
 configurations. 
 
@@ -36,15 +36,16 @@ value for an object, any subsequent accesses will never return previous values.}
 
 We achieve these properties with a simple design based on hash trees
 and content-addressable storage, borrowing ideas from
-ZFS~\cite{Bonwick03thezettabyte} and git~\cite{Chacon:2009:PG:1618548}.
+ZFS~\cite{Bonwick03thezettabyte} and git.%~\cite{Chacon:2009:PG:1618548}.
 %, and
 %Venti~\cite{Quinlan:2002:VNA:645371.651321}.
 JSON objects are placed in a content-addressable
 {\em object store}, hashed by their SHA1 digests.
 Hierarchical key names are broken up into path components that reference
 directories.
-A directory is a table of names containing SHA1 object store references.
-An external root directory SHA1 reference points to the root directory.
+A directory is an object that maps a list of names to other objects by
+their SHA1 reference.
+An external root directory SHA1 reference points to the root directory object.
 For example, if the SHA1 root reference is {\tt 1c002dde...}, and we have
 stored {\tt a.b.c = 42}, we would look it up as follows:
 %(refer to Figure~\ref{fig:kvsupdate1}):
