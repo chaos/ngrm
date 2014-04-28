@@ -1,14 +1,35 @@
 \section{Related Work}
 Our work seeks to change the paradigm in which 
-how the RM manages, models, schedules, and
-allocates its resources. Much research exists in
+how a large HPC center should manage, model, schedule, and
+allocate resources. 
+Much research exists in
 each of these areas including commercial offerings
-such as Slurm~\cite{Jette02slurm}, LSF,
-Moab and PBS Professional~\cite{PSBPro}.
-The commercial products provide traditional paradigms, and
-most research work offers 
-point solutions. In fact, \flux\ came out of real-world needs 
-for a comprehensive production open-source RM that embodies a new paradigm. 
+such as SLURM~\cite{Jette02slurm}, 
+LSF~\cite{LSF}, Moab~\cite{MOAB}, PBS Pro~\cite{PSBPro},
+as well as research tool such as OAR~\cite{Oar} and 
+Grondona's. To the best of the knowledge, \flux 
+is the first that aims at addressing emerging
+resource and job management challenges
+by increasing the management purview to the entire center
+under one common software framework. 
+
+In cloud computing, the need for exploting
+scheduler parallelism using multilevel scheduling 
+has arisen. The software include Google's 
+Omega~\cite{Omega} and Apache Mesos~\cite{Mesos}. 
+However, their scheduling algorithms are not specifically
+designed for HPC workloads and also can meet 
+scalability challenges when scaled to the entire center. 
+For example, the optimistic concurrency that Omega uses 
+can result in too many conflicts when accessing
+all resources across the entire large center like ours.
+
+Similiarly, their scheduling levels are typically 
+two, which would be too shallow when the schedulers 
+must operate at the size of all resources at the center. 
+\flux's multilevel scheduling supports arbitrary 
+numbers of levels with an ability to specialize each level.
+
 
 HPC trends increasingly motivate scalable KVS implementations 
 like ours. Wang et al. proposed a distributed KVS 
@@ -21,18 +42,18 @@ They further evaluate replacing the centralized controller in
 Slurm~\cite{Jette02slurm} with a distributed controller~\cite{Slurmpp}
 built on ZHT~\cite{Li:2013:ZLR:2510661.2511401}.
 While existing KVS work takes an incremental approach of improving 
-scalability of a traditional RM paradigm with new scalable services,
+scalability of a traditional RJMS paradigm with new scalable services,
 ours are built specifically to support the new paradigm. 
 
 We also evaluated Redis~\cite{Redis} and twemproxy~\cite{Twemproxy}
-as candidates for our KVS investigations.
-In particular, Redis cluster~\cite{RedisClusterTut,RedisClusterSpec} 
-includes many desired properties such as 
-sharding, re-sharding, replication, and failover.
-However, their design points are not optimized
-for HPC workloads which feature frequent synchrony and coordination. 
-%Our consistency model and mechanisms such as the collective fence 
-%specifically optimized for HPC.
+as part of our early KVS investigations.
+%In particular, Redis cluster~\cite{RedisClusterTut,RedisClusterSpec} 
+%includes many desired properties such as 
+%sharding, re-sharding, replication, and failover.
+%However, their design points are not optimized
+for HPC workloads which often feature synchrony and coordination. 
+Our consistency model and mechanisms such as the collective fence 
+specifically optimized for HPC.
 
 
 %There is no proxy; clients connect directly to the server
