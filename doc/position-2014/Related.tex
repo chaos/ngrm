@@ -1,35 +1,33 @@
 \section{Related Work}
-Our work seeks to change the paradigm in which 
-how a large HPC center should manage, model, schedule, and
+\flux seeks to change the paradigm in which 
+how large HPC centers should manage, model, schedule, and
 allocate resources. 
-Much research exists in
-each of these areas including commercial offerings
-such as SLURM~\cite{Jette02slurm}, 
-LSF~\cite{LSF}, Moab~\cite{MOAB}, PBS Pro~\cite{PSBPro},
-as well as research tool such as OAR~\cite{Oar} and 
-Grondona's. To the best of the knowledge, \flux 
-is the first that aims at addressing emerging
-resource and job management challenges
-by increasing the management purview to the entire center
+A strong body of research exists in each of these areas 
+including production solutions such as SLURM~\cite{Jette02slurm}, 
+LSF~\cite{LSF}, Moab~\cite{MOAB}, 
+PBS Pro~\cite{PSBPro}, LoadLeveler~\cite{LL}
+and Condor~\cite{Litzkow88}.
+To the best of our knowledge, \flux is a novel open-source 
+effort that tackles emerging HPC resource management challenges 
+by raising the RJMS's purview to the entire center 
 under one common software framework. 
 
-In cloud computing, the need for exploting
-scheduler parallelism using multilevel scheduling 
-has arisen. The software include Google's 
-Omega~\cite{Omega} and Apache Mesos~\cite{Mesos}. 
-However, their scheduling algorithms are not specifically
-designed for HPC workloads and also can meet 
-scalability challenges when scaled to the entire center. 
-For example, the optimistic concurrency that Omega uses 
-can result in too many conflicts when accessing
-all resources across the entire large center like ours.
-
-Similiarly, their scheduling levels are typically 
-two, which would be too shallow when the schedulers 
-must operate at the size of all resources at the center. 
-\flux's multilevel scheduling supports arbitrary 
-numbers of levels with an ability to specialize each level.
-
+In other areas such as cloud or grid computing, the need 
+for exploting scheduler parallelism including two-level 
+scheduling also recently emerged. 
+Google's Omega~\cite{Omega} exploits 
+a parallel scheduler architecture whereby multiple
+schedulers concurrently access the shared resource state
+with an optimistic concurrency model. Efforts
+such as Apache Mesos~\cite{Mesos} and many emerging
+grid schedulers~\cite{MultilevelGrid,Oar} 
+take advantage of two-level scheduling strategies.
+However, these approaches are neither optimized for HPC workloads 
+and nor well suited for large HPC centers. 
+Scales of a large HPC center demand a deeper 
+and dynamic resource management and scheduler hierachy 
+with an ability to impose various policies and
+constraints at various levels in this hierachy.
 
 HPC trends increasingly motivate scalable KVS implementations 
 like ours. Wang et al. proposed a distributed KVS 

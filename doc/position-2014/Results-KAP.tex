@@ -1,17 +1,19 @@
 %\subsection{KVS Access Patterns (KAP) Tester}
-We currently have prototypes for CMB and KVS implemented, and we
-will, in the following, evaluate their performance and scalability
+In the following, we evaluate the performance and scalability
+of our CMB and KVS prototypes,
 %To examine the performance of \flux's run-time system,
 %we developed 
 using
-a dedicated test called KVS Access Patterns (KAP), which allows us to stress both the KVS abstraction as well as the underlying CMB communication.
+a dedicated test called KVS Access Patterns (KAP).
+KAP allows us to stress both the KVS abstraction 
+as well as the underlying CMB communication.
 %\begin{figure}
 %  \centering
 %  \includegraphics[scale=0.45]{kaptester}
 %  \caption{Main phases of KAP tester}
 %  \label{fig:kap}
 %\end{figure}
-KAP models KVS access patterns through various interactions
+It models KVS access patterns through various interactions
 between KVS writers and readers. Writers are called producers;
 readers consumers.
 In essence, KAP allows a configurable number of producers
