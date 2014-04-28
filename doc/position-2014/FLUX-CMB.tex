@@ -132,7 +132,7 @@ the addressed comms module.
 
 RPC requests are routed ``upstream'' to the first comms module that matches
 it, possibly traversing CMB nodes.  RPC responses are routed back through
-the same set of hops, in reverse.  A comms modules may thus be loaded
+the same set of hops, in reverse.  A comms module may thus be loaded
 at a configurable tree depth to tune its level of distribution
 or to conserve node resources for application workloads toward the leaves.
 The tree topology of the RPC overlay permits data reductions to be performed by
