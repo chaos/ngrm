@@ -35,9 +35,11 @@ CMBD_OBJS = route.o plugin.o $(COMMON_OBJS) cmbd.o
 FLUX_OBJS = flux.o
 LIBPMI_OBJS = pmi.o
 LIBCMB_OBJS = apicli.o $(COMMON_OBJS)
+LIBRDL_OBJS = rdl.o dlua/json-lua.o util/list.o
 
 LIBPMI = $(LIBDIR)/libpmi.so.0
 LIBCMB = $(LIBDIR)/libcmb.so.0
+LIBRDL = $(LIBDIR)/librdl.so.0
 
 PLUGINS = plugins/apisrv.so plugins/hbsrv.so plugins/kvssrv.so \
 	plugins/barriersrv.so plugins/livesrv.so plugins/mechosrv.so \
@@ -51,7 +53,7 @@ SUBCMDS = libexec/kvs libexec/ping libexec/mecho libexec/route \
 	libexec/logger libexec/log libexec/info libexec/kvscopy \
 	libexec/zio libexec/up libexec/host libexec/keygen libexec/mon
 
-BUILD = $(LIBCMB) $(LIBPMI) flux mpi_hello echo cmbd \
+BUILD = $(LIBCMB) $(LIBPMI) $(LIBRDL) flux mpi_hello echo cmbd \
 	$(PLUGINS) $(SUBCMDS)
 
 all: subdirs $(BUILD) subdirs_post
@@ -90,6 +92,12 @@ $(LIBCMB): $(LIBCMB_OBJS) $(LIBUTIL)
 	mkdir -p $(shell dirname $@)
 	$(CC) -shared -Wl,--version-script=cmb_version.map \
 		-o $@ $(LIBCMB_OBJS) $(LDADD_CLI)
+	ln -sf $(shell basename $@) $(@:.0=)
+
+$(LIBRDL): $(LIBRDL_OBJS) $(LIBUTIL)
+	mkdir -p $(shell dirname $@)
+	$(CC) -shared -Wl,--version-script=rdl_version.map \
+		-o $@ $(LIBRDL_OBJS) -llua -ljson
 	ln -sf $(shell basename $@) $(@:.0=)
 
 $(LIBUTIL):
