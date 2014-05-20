@@ -51,7 +51,8 @@ SUBCMDS = libexec/kvs libexec/ping libexec/mecho libexec/route \
 	libexec/stats libexec/barrier libexec/snoop libexec/event \
 	libexec/kvswatch libexec/kvsdir libexec/kvstorture \
 	libexec/logger libexec/log libexec/info libexec/kvscopy \
-	libexec/zio libexec/up libexec/host libexec/keygen libexec/mon
+	libexec/zio libexec/up libexec/host libexec/keygen libexec/mon \
+	libexec/rdltool
 
 BUILD = $(LIBCMB) $(LIBPMI) $(LIBRDL) flux mpi_hello echo cmbd \
 	$(PLUGINS) $(SUBCMDS)
@@ -78,6 +79,10 @@ cmbd: $(CMBD_OBJS)
 
 flux: $(FLUX_OBJS) $(LIBCMB)
 	$(CC) $(LDFLAGS) -o $@ $(FLUX_OBJS) $(LDADD_CLI)
+
+libexec/rdltool : flux-rdltool.o
+	$(CC) $(LDFLAGS) -o $@ $< -L$(LIBDIR) -lrdl -lzmq -lczmq util/libutil.a
+
 libexec/%: flux-%.o
 	mkdir -p $(shell dirname $@)
 	$(CC) $(LDFLAGS) -o $@ $< -L$(LIBDIR) -lcmb $(LDADD_CLI)
