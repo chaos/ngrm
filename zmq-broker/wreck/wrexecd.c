@@ -7,7 +7,7 @@
 #include <sys/wait.h>
 #include <sys/signalfd.h>
 #include <json/json.h>
-#include <czmq.h>
+#include <czmq/czmq.h>
 #include <sys/syslog.h>
 #include <envz.h>
 #include <sys/ptrace.h>

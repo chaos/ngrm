@@ -1,7 +1,7 @@
 
 #include <sys/socket.h>
 #include <zmq.h>
-#include <czmq.h>
+#include <czmq/czmq.h>
 #include <json/json.h>
 #include <json/arraylist.h>
 #include <uuid/uuid.h>

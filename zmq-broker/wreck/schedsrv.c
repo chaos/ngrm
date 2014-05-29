@@ -13,22 +13,28 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <czmq.h>
+#include <czmq/czmq.h>
 #include <json/json.h>
 
 #include "zmsg.h"
+#include "shortjson.h"
 #include "log.h"
 #include "util.h"
 #include "plugin.h"
+#include "rdl.h"
 #include "scheduler.h"
 
-#define LS_RESERVED "reserved"
-#define LS_PENDING  "pending"
-#define LS_RUNREQ   "runrequest"
-#define LS_STARTING "starting"
-#define LS_RUNNING  "running"
-#define LS_COMPLETE "complete"
-#define LS_REAPED   "reaped"
+#define LS_RESERVED  "reserved"
+#define LS_SUBMITTED "submitted"
+#define LS_UNSCHED   "unsched"
+#define LS_PENDING   "pending"
+#define LS_RUNREQ    "runrequest"
+#define LS_ALLOCATED "allocated"
+#define LS_STARTING  "starting"
+#define LS_RUNNING   "running"
+#define LS_CANCELLED "cancelled"
+#define LS_COMPLETE  "complete"
+#define LS_REAPED    "reaped"
 #define MAX_STR_LEN 128
 
 /****************************************************************
@@ -65,6 +71,7 @@ static queue_t *lwj_p = NULL;
 static queue_t *lwj_c = NULL;
 static queue_t *event = NULL;
 static flux_t h = NULL;
+static long event_count;
 
 
 /****************************************************************
@@ -81,6 +88,10 @@ init_internal_queues ()
         rc = -1;
         goto ret;
     }
+
+    lwj_p = (queue_t *) xzmalloc (sizeof (queue_t));
+    lwj_c = (queue_t *) xzmalloc (sizeof (queue_t));
+    event = (queue_t *) xzmalloc (sizeof (queue_t));
 
     lwj_p->queue = zlist_new ();
     lwj_c->queue = zlist_new ();
@@ -252,7 +263,7 @@ static int
 signal_event ( )
 {
     int rc = 0;
-    if (kvs_put_int64 (h, "event-counter", 0) < 0 ) {
+    if (kvs_put_int64 (h, "event-counter", ++event_count) < 0 ) {
         flux_log (h, LOG_ERR,
             "error kvs_put_int64 event-counter: %s",
             strerror (errno));
@@ -343,19 +354,31 @@ translate_state (const char *s)
     lwj_state_e re = j_for_rent;
 
     if (strcmp (s, LS_RESERVED) == 0) {
+        re = j_reserved;
+    }
+    else if (strcmp (s, LS_SUBMITTED) == 0) {
         re = j_submitted;
     }
-    else if (strcmp (s, LS_PENDING) == 0) {
+    if (strcmp (s, LS_UNSCHED) == 0) {
         re = j_unsched;
+    }
+    else if (strcmp (s, LS_PENDING) == 0) {
+        re = j_pending;
     }
     else if (strcmp (s, LS_RUNREQ) == 0) {
         re = j_runrequest;
+    }
+    else if (strcmp (s, LS_ALLOCATED) == 0) {
+        re = j_allocated;
     }
     else if (strcmp (s, LS_STARTING) == 0) {
         re = j_starting;
     }
     else if (strcmp (s, LS_RUNNING) == 0) {
         re = j_running;
+    }
+    else if (strcmp (s, LS_CANCELLED) == 0) {
+        re = j_cancelled;
     }
     else if (strcmp (s, LS_COMPLETE) == 0) {
         re = j_complete;
@@ -403,6 +426,86 @@ genev_kvs_st_chng (lwj_event_e e, flux_lwj_t *j)
 
 ret:
     return;
+}
+
+/****************************************************************
+ *
+ *         Scheduler Activities
+ *
+ ****************************************************************/
+
+/*
+ * Assumes that the required resources are available, so walk the tree
+ * find the required resources and change their state to "allocated".
+ */
+static int
+allocate_resources (struct resource *r, const char *uri, flux_lwj_t *job)
+{
+    const char *type;
+    int rc = -1;
+    json_object *o;
+    struct resource *c;
+
+    rdl_resource_iterator_reset (r);
+    while ((c = rdl_resource_next_child (r))) {
+        o = rdl_resource_json (r);
+        Jget_str (o, "type", &type);
+        if  (strcmp (type, "node") == 0) {
+            flux_log (h, LOG_INFO, "found a node: %s",
+                      json_object_to_json_string (o));
+            rc = 0;
+        } else {
+            flux_log (h, LOG_INFO, "this is not a node: %s",
+                      json_object_to_json_string (o));
+        }
+        json_object_put (o);
+        rdl_resource_destroy (c);
+    }
+    return rc;
+}
+
+static int
+update_job(flux_lwj_t *job)
+{
+    int rc = -1;
+/* Add the allocated resources to the job and change its state to
+   "allocated" ( or perhaps "runrequest" ) */
+    return rc;
+}
+
+int schedule_job (struct rdl *rdl, const char *uri, flux_lwj_t *job)
+{
+    int nodes;
+    int rc = -1;
+    json_object *o;
+    uint64_t reqnodes = job->req.nnodes;
+    struct resource *r = rdl_resource_get (rdl, uri);
+    if (r == NULL) {
+        flux_log (h, LOG_ERR, "Failed to get resource `%s'\n", uri);
+        return rc;
+    }
+
+    o = rdl_resource_aggregate_json (r);
+    if (!util_json_object_get_int (0, "nodes", &nodes)) {
+        if (nodes >= reqnodes) {
+            if (!allocate_resources(r, uri, job))
+                rc = update_job(job);
+        }
+    }
+
+    return rc;
+}
+
+int schedule_jobs (struct rdl *rdl, const char *uri, flux_lwj_t *jobs)
+{
+    flux_lwj_t *job;
+    int rc = -1;
+
+    while ((job = jobs)) {
+        schedule_job(rdl, uri, job);
+        jobs++;
+    }
+    return rc;
 }
 
 
@@ -542,7 +645,7 @@ action_j_event (flux_event_t *e)
         break;
 
     default:
-        flux_log (h, LOG_ERR, "unknown lwj state");
+        flux_log (h, LOG_ERR, "unknown lwj state %d", e->lwj->state);
         break;
     }
 
@@ -624,7 +727,9 @@ static int
 reg_event_hdlr (KVSSetInt64F *func)
 {
     int rc = 0;
-    if (kvs_put_int64 (h, "event-counter", 0) < 0 ) {
+
+    event_count = 0;
+    if (kvs_put_int64 (h, "event-counter", event_count) < 0 ) {
         flux_log (h, LOG_ERR, 
             "error kvs_put_int64 event-counter: %s",
             strerror (errno));
@@ -637,7 +742,7 @@ reg_event_hdlr (KVSSetInt64F *func)
         goto ret;
     }
     if (kvs_watch_int64 (h, "event-counter", func, (void *) h) < 0) {
-        flux_log (h, LOG_ERR, "watch event-counte: %s", 
+        flux_log (h, LOG_ERR, "watch event-counter: %s", 
 		          strerror (errno));
 	    rc = -1;
         goto ret;
@@ -669,18 +774,18 @@ reg_lwj_state_hdlr (const char *path, KVSSetStringF *func)
 {
     int rc = 0;
     char *k = NULL;
-   
+
     asprintf (&k, "%s.state", path);
     if (kvs_watch_string (h, k, func, (void *)h) < 0) {
-	    flux_log (h, LOG_ERR, 
-		    "watch a lwj state in %s: %s.", 
-		    k, strerror (errno));
-	    rc = -1;
-	    goto ret;
+        flux_log (h, LOG_ERR, 
+                  "watch a lwj state in %s: %s.", 
+                  k, strerror (errno));
+        rc = -1;
+        goto ret;
     }
 
     flux_log (h, LOG_INFO, 
-	          "lwj state state change handler registered.");
+              "lwj %s.state change handler registered.", path);
 
 ret:
     free (k);
@@ -700,7 +805,7 @@ lwjstate_cb (const char *key, const char *val, void *arg, int errnum)
 
     if (errnum > 0) {
         flux_log (h, LOG_ERR, 
-                  "in newlwj_cb key(%s), val(%s): %s", 
+                  "in lwjstate_cb key(%s), val(%s): %s", 
                   key, val, strerror (errnum));
         goto ret;
     }
@@ -720,7 +825,9 @@ ret:
     return;    
 }
 
-
+/* The val argument is for the *next* job id.  Hence, the job id of
+ * the new job will be (val - 1).
+ */
 static void 
 newlwj_cb (const char *key, int64_t val, void *arg, int errnum)
 {
@@ -742,12 +849,12 @@ newlwj_cb (const char *key, int64_t val, void *arg, int errnum)
         flux_log (h, LOG_ERR, "oom");
         goto error;
     }
-    if (extract_lwjinfo (val, j) == -1) {
+    if (extract_lwjinfo (val - 1, j) == -1) {
         flux_log (h, LOG_ERR, 
                   "extracting lwj info failed");
         goto error;
     }
-    snprintf (path, MAX_STR_LEN, "lwj.%ld", val);
+    snprintf (path, MAX_STR_LEN, "lwj.%ld", val - 1);
     if (reg_lwj_state_hdlr (path, (KVSSetStringF *) lwjstate_cb) == -1) {
         flux_log (h, LOG_ERR, 
                   "register lwj state change "
@@ -785,7 +892,7 @@ error:
 
 
 static void 
-event_cb (const char *key, const char *val, void *arg, int errnum)
+event_cb (const char *key, int64_t *val, void *arg, int errnum)
 {
     flux_event_t *e = NULL;
 

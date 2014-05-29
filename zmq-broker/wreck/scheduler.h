@@ -12,7 +12,7 @@
 #define SCHEDULER_H 1
 
 #include <stdint.h>
-#include <czmq.h>
+#include <czmq/czmq.h>
 
 
 /**

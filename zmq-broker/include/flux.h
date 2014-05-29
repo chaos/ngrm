@@ -11,7 +11,7 @@ typedef void (*FluxFreeFn)(void *arg);
 
 typedef struct flux_handle_struct *flux_t;
 
-#include <czmq.h>
+#include <czmq/czmq.h>
 
 #include "kvs.h"
 #include "mrpc.h"

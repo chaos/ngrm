@@ -2,7 +2,7 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <zmq.h>
-#include <czmq.h>
+#include <czmq/czmq.h>
 #include <inttypes.h>
 #include <json/json.h>
 

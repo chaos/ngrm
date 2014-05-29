@@ -18,7 +18,7 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <zmq.h>
-#include <czmq.h>
+#include <czmq/czmq.h>
 #include <json/json.h>
 
 #include "zmsg.h"
