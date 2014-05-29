@@ -1,6 +1,8 @@
 #ifndef _HAVE_UTIL_SHORTJSON_H
 #define _HAVE_UTIL_SHORTJSON_H
 
+#include "log.h"
+
 typedef json_object *JSON;
 
 /* Creates JSON object with refcount of 1.
