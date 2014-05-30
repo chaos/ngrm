@@ -33,12 +33,17 @@ struct rdl_accumulator;
 /*
  *  Prototype for error processing function
  */
-typedef void (*rdl_err_f) (const char *fmt, ...);
+typedef void (*rdl_err_f) (void *ctx, const char *fmt, ...);
 
 
 /*
  *  RDL Database functions:
  */
+
+/*
+ *  Set default rdllib error handling function to [fn] and context [ctx].
+ */
+void rdllib_set_default_errf (void *ctx, rdl_err_f fn);
 
 /*
  *  Create a new rdl library handle
@@ -50,6 +55,11 @@ struct rdllib * rdllib_open (void);
  */
 void rdllib_close (struct rdllib *l);
 
+/*
+ *  Set rdllib error handling function to [fn] with context [ctx]
+ *   to be passed to error function at each call.
+ */
+int rdllib_set_errf (struct rdllib *l, void *ctx, rdl_err_f fn);
 
 /*
  *  Load an RDL db into library [l] from string [s] and return
@@ -67,6 +77,23 @@ struct rdl * rdl_loadfile (struct rdllib *l, const char *filename);
  *  Copy an RDL handle
  */
 struct rdl * rdl_copy (struct rdl *rdl);
+
+/*
+ *  Return a new RDL handle containing all resources that
+ *   match expression in json_object [args].
+ *
+ *  JSON object supports the following keys, each of which are
+ *   ANDed together
+ *
+ *  {
+ *    'basename' : STRING,   - base name of object
+ *    'name'     : NAMELIST, - match full name in NAMELIST (hostlist format)
+ *    'ids'      : IDLIST,   - match resource "id" in idlist
+ *    'type'     : STRING,   - match resource type name
+ *    'tags'     : [ TAGS ]  - list of tags to match
+ *  }
+ */
+struct rdl * rdl_find (struct rdl *rdl, json_object *args);
 
 /*
  *  Destroy and deallocate an rdl handle

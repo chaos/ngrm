@@ -12,10 +12,15 @@
 #include "util/list.h"
 #include "dlua/json-lua.h"
 
+#define VERR(r,args...) (*((r)->errf)) ((r)->errctx, args)
+
+static rdl_err_f default_err_f = NULL;
+static void *    default_err_ctx = NULL;
 
 struct rdllib {
     lua_State *L;          /*  Global lua state                        */
     rdl_err_f  errf;       /*  Error/debug function                    */
+    void *     errctx;     /*  ctx passed to error/debug function      */
     List       rdl_list;   /*  List of rdl db instances                */
 };
 
@@ -52,7 +57,7 @@ struct rdl_accumulator {
  *  Static functions
  ***************************************************************************/
 
-static void verr (const char *fmt, ...)
+static void verr (void *ctx, const char *fmt, ...)
 {
     va_list ap;
     va_start (ap, fmt);
@@ -62,16 +67,15 @@ static void verr (const char *fmt, ...)
 
 void lsd_fatal_error (char *file, int line, char *msg)
 {
-    verr (msg);
+    verr (NULL, msg);
     exit (1);
 }
 
 void * lsd_nomem_error (char *file, int line, char *msg)
 {
-    verr ("Out of memory: %s: %s:%d\n", msg, file, line);
+    verr (NULL, "Out of memory: %s: %s:%d\n", msg, file, line);
     return NULL;
 }
-
 
 void rdllib_close (struct rdllib *rl)
 {
@@ -90,11 +94,11 @@ static int rdllib_init (struct rdllib *rl)
     lua_getglobal (rl->L, "require");
     lua_pushstring (rl->L, "RDL");
     if (lua_pcall (rl->L, 1, 1, 0)) {
-        (*rl->errf) ("loading RDL: %s\n", lua_tostring (rl->L, -1));
+        VERR (rl, "loading RDL: %s\n", lua_tostring (rl->L, -1));
         return (-1);
     }
     if (!lua_istable (rl->L, -1)) {
-        (*rl->errf) ("Failed to load RDL: %s\n", lua_tostring (rl->L, -1));
+        VERR (rl, "Failed to load RDL: %s\n", lua_tostring (rl->L, -1));
     }
     /*
      *  Assign implementation to global RDL table.
@@ -150,7 +154,8 @@ struct rdllib * rdllib_open (void)
     }
 
     luaL_openlibs (rl->L);
-    rl->errf = &verr;
+    rl->errf = default_err_f ? default_err_f : &verr;
+    rl->errctx = default_err_ctx;
 
     rl->rdl_list = list_create ((ListDelF) rdl_free);
     if (rl->rdl_list == NULL) {
@@ -162,6 +167,19 @@ struct rdllib * rdllib_open (void)
         return NULL;
 
     return (rl);
+}
+
+int rdllib_set_errf (struct rdllib *l, void *ctx, rdl_err_f fn)
+{
+    l->errf = fn;
+    l->errctx = ctx;
+    return (0);
+}
+
+void rdllib_set_default_errf (void *ctx, rdl_err_f fn)
+{
+    default_err_ctx = ctx;
+    default_err_f = fn;
 }
 
 void rdl_destroy (struct rdl *rdl)
@@ -190,7 +208,7 @@ static int rdl_dostringf (struct rdl *rdl, const char *fmt, ...)
 
     if (  luaL_loadstring (rdl->L, s)
        || lua_pcall (rdl->L, 0, LUA_MULTRET, 0)) {
-        (*rdl->rl->errf) ("dostring (%s): %s\n", s, lua_tostring (rdl->L, -1));
+        VERR (rdl->rl, "dostring (%s): %s\n", s, lua_tostring (rdl->L, -1));
         lua_settop (rdl->L, 0);
         free (s);
         return (-1);
@@ -328,13 +346,14 @@ void rdl_resource_destroy (struct resource *r)
         rdl_resource_free (r);
 }
 
-static struct rdl * loadfn (struct rdllib *rl, const char *fn, const char *s)
+/*
+ *  Allocate a new RDL instance under library state [rl].
+ */
+static struct rdl * rdl_new (struct rdllib *rl)
 {
-    int rc;
     struct rdl * rdl = malloc (sizeof (*rdl));
     if (rdl == NULL)
         return NULL;
-
     /*
      *  Each rdl instance is a new thread in global lua state rl->L
      */
@@ -350,12 +369,46 @@ static struct rdl * loadfn (struct rdllib *rl, const char *fn, const char *s)
     rdl->rl = rl;
     rdl->resource_list = list_create ((ListDelF) rdl_resource_free);
 
+    /* Leave rdl instance on top of stack */
+    return (rdl);
+}
+
+/*
+ *  Pop an RDL table from source lua thread in [from] and move it
+ *   to a newly created lua state, returning the new RDL instance.
+ */
+static struct rdl * lua_pop_new_rdl (struct rdl *from)
+{
+    struct rdl *to;
+    /*
+     *  Ensure item at top of stack is at least a table:
+     */
+    if (lua_type (from->L, -1) != LUA_TTABLE)
+        return (NULL);
+
+    /*
+     *  Create a new rdl object within this library state:
+     */
+    to = rdl_new (from->rl);
+
+    lua_xmove (from->L, to->L, -1);
+    lua_setglobal (to->L, "rdl");
+    return (to);
+}
+
+static struct rdl * loadfn (struct rdllib *rl, const char *fn, const char *s)
+{
+    int rc;
+    struct rdl * rdl = rdl_new (rl);
+    if (rdl == NULL)
+        return NULL;
+
     /*
      *  First, get function to evaluate rdl:
      */
     rc = rdl_dostringf (rdl, "return require 'RDL'.%s", fn);
     if (rc <= 0) {
-        (*rl->errf) ("rdl_load: Failed to get function RDL.%s\n", fn);
+        VERR (rl, "rdl_load: Failed to get function RDL.%s\n", fn);
         rdl_destroy (rdl);
         return (NULL);
     }
@@ -366,13 +419,13 @@ static struct rdl * loadfn (struct rdllib *rl, const char *fn, const char *s)
     if (s)
         lua_pushstring (rdl->L, s);
     if (lua_pcall (rdl->L, s?1:0, LUA_MULTRET, 0)) {
-        (*rl->errf) ("rdl_load: RDL.%s: %s\n", fn, lua_tostring (rdl->L, -1));
+        VERR (rl, "rdl_load: RDL.%s: %s\n", fn, lua_tostring (rdl->L, -1));
         rdl_destroy (rdl);
         return (NULL);
     }
 
     if (lua_type (rdl->L, -1) != LUA_TTABLE) {
-        (*rl->errf) ("rdl_load: %s\n", lua_tostring (rdl->L, -1));
+        VERR (rl, "rdl_load: %s\n", lua_tostring (rdl->L, -1));
         rdl_destroy (rdl);
         return (NULL);
     }
@@ -394,24 +447,69 @@ struct rdl * rdl_load (struct rdllib *rl, const char *s)
     return loadfn (rl, "eval", s);
 }
 
+
 struct rdl * rdl_copy (struct rdl *rdl)
 {
-    struct rdl *new;
-    char *s;
     if (rdl == NULL)
         return (NULL);
     assert (rdl->L);
     assert (rdl->rl);
+    /*
+     *  Call memstore:dup() function to push copy of current rdl
+     *   onto stack:
+     */
+    rdl_dostringf (rdl, "return rdl:dup()");
+    return (lua_pop_new_rdl (rdl));
+}
 
-    s = rdl_serialize (rdl);
-    if (!s) {
-        (*rdl->rl->errf) ("serialization failure");
+static int lua_rdl_push (struct rdl *rdl)
+{
+    lua_rawgeti (rdl->L, LUA_GLOBALSINDEX, rdl->lua_ref);
+    return (1);
+}
+
+static int lua_rdl_method_push (struct rdl *rdl, const char *name)
+{
+    lua_State *L = rdl->L;
+    /*
+     *  First push rdl resource proxy object onto stack
+     */
+    lua_rdl_push (rdl);
+    lua_pushstring (L, name);
+    lua_rawget (L, -2);
+
+    if (lua_type (L, -1) != LUA_TFUNCTION) {
+        lua_pushnil (L);
+        lua_pushstring (L, "not a method");
+        return (-1);
+    }
+
+    /*
+     *  Push rdl reference again as first argument to "Method"
+     */
+    lua_rdl_push (rdl);
+    return (0);
+}
+
+struct rdl * rdl_find (struct rdl *rdl, json_object *args)
+{
+    lua_rdl_method_push (rdl, "find");
+
+    if (json_object_to_lua (rdl->L, args) < 0) {
+        VERR (rdl->rl, "Failed to convert JSON to Lua");
+        return (NULL);
+    }
+    /*
+     *  stack: [ Method, object, args-table ]
+     */
+    if (lua_pcall (rdl->L, 2, LUA_MULTRET, 0) || lua_isnoneornil (rdl->L, 1)) {
+        VERR (rdl->rl, "find(%s): %s\n",
+                json_object_to_json_string (args),
+                lua_tostring (rdl->L, -1));
         return (NULL);
     }
 
-    new = rdl_load (rdl->rl, s);
-    free (s);
-    return (new);
+    return (lua_pop_new_rdl (rdl));
 }
 
 char * rdl_serialize (struct rdl *rdl)
@@ -446,7 +544,7 @@ struct resource * rdl_resource_get (struct rdl *rdl, const char *uri)
         uri = "default";
     rdl_dostringf (rdl, "return rdl:resource ('%s')", uri);
     if (lua_type (rdl->L, -1) != LUA_TTABLE) {
-        (*rdl->rl->errf) ("resource (%s): %s\n", uri, lua_tostring (rdl->L, -1));
+        VERR (rdl->rl, "resource (%s): %s\n", uri, lua_tostring (rdl->L, -1));
         return (NULL);
     }
     return (create_resource_ref (rdl, -1));
@@ -539,7 +637,7 @@ int rdl_resource_method_call1 (struct resource *r,
      *  stack: [ Method, object, arg ]
      */
     if (lua_pcall (L, 2, LUA_MULTRET, 0) || lua_isnoneornil (L, 1)) {
-        (*r->rdl->rl->errf) ("%s(%s): %s\n", method, arg, lua_tostring (L, -1));
+        VERR (r->rdl->rl, "%s(%s): %s\n", method, arg, lua_tostring (L, -1));
         rc = -1;
     }
     lua_settop (L, 0);
@@ -567,11 +665,11 @@ rdl_resource_method_to_json (struct resource *r, const char *method)
     lua_State *L = r->rdl->L;
 
     if (lua_rdl_resource_method_call (r,  method)) {
-        (*r->rdl->rl->errf) ("json: %s\n", lua_tostring (L, -1));
+        VERR (r->rdl->rl, "json: %s\n", lua_tostring (L, -1));
         return (NULL);
     }
     if (lua_type (L, -1) != LUA_TTABLE) {
-        (*r->rdl->rl->errf) ("json: Failed to get table. Got %s\n",
+        VERR (r->rdl->rl, "json: Failed to get table. Got %s\n",
                              luaL_typename (L, -1));
         lua_pop (L, 1);
         return (NULL);
@@ -598,7 +696,7 @@ json_object * rdl_resource_aggregate_json (struct resource *r)
 struct resource * rdl_resource_next_child (struct resource *r)
 {
     if (lua_rdl_resource_method_call (r, "next_child")) {
-        (*r->rdl->rl->errf) ("next child: %s\n", lua_tostring (r->rdl->L, -1));
+        VERR (r->rdl->rl, "next child: %s\n", lua_tostring (r->rdl->L, -1));
         return NULL;
     }
     if (lua_isnil (r->rdl->L, -1)) {
@@ -612,8 +710,7 @@ struct resource * rdl_resource_next_child (struct resource *r)
 void rdl_resource_iterator_reset (struct resource *r)
 {
     if (lua_rdl_resource_method_call (r, "reset"))
-        (*r->rdl->rl->errf) ("iterator reset: %s\n",
-                    lua_tostring (r->rdl->L, -1));
+        VERR (r->rdl->rl, "iterator reset: %s\n", lua_tostring (r->rdl->L, -1));
 }
 
 /*
@@ -637,8 +734,7 @@ struct rdl_accumulator * rdl_accumulator_create (struct rdl *rdl)
 
     rdl_dostringf (rdl, "return rdl:resource_accumulator()");
     if (lua_type (rdl->L, -1) != LUA_TTABLE) {
-        (*rdl->rl->errf) ("accumlator_create: %s\n",
-            lua_tostring (rdl->L, -1));
+        VERR (rdl->rl, "accumlator_create: %s\n", lua_tostring (rdl->L, -1));
         return (NULL);
     }
     a = malloc (sizeof (*a));
@@ -685,7 +781,7 @@ int rdl_accumulator_add (struct rdl_accumulator *a, struct resource *r)
 
     /* Stack: [ Method, Object, arg ] */
     if (lua_pcall (L, 2, LUA_MULTRET, 0) || lua_isnoneornil (L, 1)) {
-        (*a->rdl->rl->errf) ("accumulator_add: %s", lua_tostring (L, -1));
+        VERR (a->rdl->rl, "accumulator_add: %s", lua_tostring (L, -1));
         rc = -1;
     }
     lua_settop (L, 0);
@@ -698,7 +794,7 @@ char * rdl_accumulator_serialize (struct rdl_accumulator *a)
     lua_State *L = a->rdl->L;
     lua_rdl_accumulator_method_push (a, "serialize");
     if (lua_pcall (L, 1, LUA_MULTRET, 0)) {
-        (*a->rdl->rl->errf) ("accumulator:serialize: %s", lua_tostring (L, -1));
+        VERR (a->rdl->rl, "accumulator:serialize: %s", lua_tostring (L, -1));
         return (NULL);
     }
     asprintf (&s, "-- RDL v1.0\n%s", lua_tostring (L, -1));
@@ -715,7 +811,7 @@ struct rdl * rdl_accumulator_copy (struct rdl_accumulator *a)
         return (NULL);
 
     if ((s = rdl_accumulator_serialize (a)) == NULL) {
-        (*a->rdl->rl->errf) ("serialization failure");
+        VERR (a->rdl->rl, "serialization failure");
         return (NULL);
     }
     rdl = rdl_load (a->rdl->rl, s);
