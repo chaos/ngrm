@@ -67,7 +67,7 @@ plugins/rexecsrv.so: wreck/wrexecsrv.c
 	$(CC) -shared $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBUTIL)
 plugins/%.so: wreck/%.c
 	mkdir -p plugins
-	$(CC) -shared $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBUTIL)
+	$(CC) -shared $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBUTIL) $(LIBRDL)
 
 subdirs: $(LIBUTIL) $(LIBZUTIL) $(LIBCMB)
 	@for f in $(SUBDIRS); do make -C $$f; done

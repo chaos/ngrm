@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <libgen.h>
 #include <czmq/czmq.h>
 #include <json/json.h>
 
@@ -72,7 +73,45 @@ static queue_t *lwj_c = NULL;
 static queue_t *event = NULL;
 static flux_t h = NULL;
 static long event_count;
+static struct rdllib *l = NULL;
+static struct rdl *rdl = NULL;;
 
+
+/****************************************************************
+ *
+ *         Resource Description Library Setup
+ *
+ ****************************************************************/
+static void f_err (flux_t h, const char *msg, ...)
+{
+    va_list ap;
+    va_start (ap, msg);
+    flux_vlog (h, LOG_ERR, msg, ap);
+    va_end (ap);
+}
+
+/* XXX: Borrowed from flux.c and subject to change... */
+static void setup_rdl_lua (void)
+{
+    char *s;
+    char  exe_path [MAXPATHLEN];
+    char *exe_dir;
+
+    memset (exe_path, 0, MAXPATHLEN);
+    if (readlink ("/proc/self/exe", exe_path, MAXPATHLEN - 1) < 0)
+        err_exit ("readlink (/proc/self/exe)");
+    exe_dir = dirname (exe_path);
+
+    s = getenv ("LUA_CPATH");
+    setenvf ("LUA_CPATH", 1, "%s/dlua/?.so;%s", exe_dir, s ? s : ";;");
+    s = getenv ("LUA_PATH");
+    setenvf ("LUA_PATH", 1, "%s/dlua/?.lua;%s", exe_dir, s ? s : ";;");
+
+    flux_log (h, LOG_DEBUG, "LUA_PATH %s", getenv ("LUA_PATH"));
+    flux_log (h, LOG_DEBUG, "LUA_CPATH %s", getenv ("LUA_CPATH"));
+
+    rdllib_set_default_errf (h, (rdl_err_f)(&f_err));
+}
 
 /****************************************************************
  *
@@ -433,6 +472,25 @@ ret:
  *         Scheduler Activities
  *
  ****************************************************************/
+static int
+load_resources()
+{
+    int rc = -1;
+
+    setup_rdl_lua ();
+
+    if ((l = rdllib_open ())) {
+        if ((rdl = rdl_loadfile (l, "conf/hype.lua"))) {
+            rc = 0;
+        } else {
+            flux_log (h, LOG_ERR, "failed to load rdl file");
+        }
+    } else {
+        flux_log (h, LOG_ERR, "failed to open rdl lib");
+    }
+
+    return rc;
+}
 
 /*
  * Assumes that the required resources are available, so walk the tree
@@ -584,6 +642,10 @@ static int
 action_j_event (flux_event_t *e)
 {
     switch (e->lwj->state) {
+    case j_reserved:
+        /* ignore this state transition for now ... */
+        break;
+
     case j_submitted:
         if (e->ev.je != j_unsched) {
            goto bad_transition;
@@ -747,6 +809,7 @@ reg_event_hdlr (KVSSetInt64F *func)
 	    rc = -1;
         goto ret;
     } 
+    flux_log (h, LOG_DEBUG, "registered event callback");
 
 ret:
     return rc;
@@ -760,10 +823,8 @@ reg_newlwj_hdlr (KVSSetInt64F *func)
         flux_log (h, LOG_ERR, "watch lwj.next-id: %s", 
 		          strerror (errno));
 	    return -1;
-    } 
-
-    flux_log (h, LOG_INFO, 
-	          "lwj creation handler registered.");
+    }
+    flux_log (h, LOG_DEBUG, "registered lwj creation callback");
 
     return 0;
 }
@@ -783,9 +844,7 @@ reg_lwj_state_hdlr (const char *path, KVSSetStringF *func)
         rc = -1;
         goto ret;
     }
-
-    flux_log (h, LOG_INFO, 
-              "lwj %s.state change handler registered.", path);
+    flux_log (h, LOG_DEBUG, "registered lwj %s.state change callback", path);
 
 ret:
     free (k);
@@ -804,9 +863,14 @@ lwjstate_cb (const char *key, const char *val, void *arg, int errnum)
     lwj_event_e e;
 
     if (errnum > 0) {
-        flux_log (h, LOG_ERR, 
-                  "in lwjstate_cb key(%s), val(%s): %s", 
-                  key, val, strerror (errnum));
+        /* Ignore ENOENT.  It is expected when this cb is called right
+         * after registration.
+         */
+        if (errnum != ENOENT) {
+            flux_log (h, LOG_ERR, 
+                      "in lwjstate_cb key(%s), val(%s): %s", 
+                      key, val, strerror (errnum));
+        }
         goto ret;
     }
     
@@ -840,6 +904,8 @@ newlwj_cb (const char *key, int64_t val, void *arg, int errnum)
                   "in newlwj_cb key(%s), val(%ld): %s", 
                   key, val, strerror (errnum));
         goto error;
+    } else {
+        flux_log (h, LOG_DEBUG, "newlwj_cb key(%s), val(%ld)", key, val);
     }
     if ( !(j = (flux_lwj_t *) xzmalloc (sizeof (flux_lwj_t))) ) {
         flux_log (h, LOG_ERR, "oom");
@@ -925,6 +991,12 @@ schedsvr_main (flux_t p, zhash_t *args)
                   strerror (errno));
         rc = -1;
         goto ret; 
+    }
+    if (load_resources () == -1) {
+        flux_log (h, LOG_ERR, "failed to load resources: %s",
+                  strerror (errno));
+        rc = -1;
+        goto ret;
     }
     if (init_internal_queues () == -1) {
         flux_log (h, LOG_ERR, 
