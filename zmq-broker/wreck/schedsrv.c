@@ -1,12 +1,12 @@
 /*
- *--------------------------------------------------------------------------------
+ *-------------------------------------------------------------------------------
  * Copyright and authorship blurb here
- *--------------------------------------------------------------------------------
+ *-------------------------------------------------------------------------------
  * schedsrv.h - common scheduler services
  *
  * Update Log:
  *       May 24 2012 DHA: File created.
- */ 
+ */
 
 #define _GNU_SOURCE
 #include <stdio.h>
@@ -16,6 +16,7 @@
 #include <libgen.h>
 #include <czmq/czmq.h>
 #include <json/json.h>
+#include <dlfcn.h>
 
 #include "zmsg.h"
 #include "shortjson.h"
@@ -25,6 +26,7 @@
 #include "rdl.h"
 #include "scheduler.h"
 
+#define LS_NULL      "null"
 #define LS_RESERVED  "reserved"
 #define LS_SUBMITTED "submitted"
 #define LS_UNSCHED   "unsched"
@@ -96,6 +98,7 @@ static void setup_rdl_lua (void)
     char *s;
     char  exe_path [MAXPATHLEN];
     char *exe_dir;
+    char *rdllib;
 
     memset (exe_path, 0, MAXPATHLEN);
     if (readlink ("/proc/self/exe", exe_path, MAXPATHLEN - 1) < 0)
@@ -103,12 +106,19 @@ static void setup_rdl_lua (void)
     exe_dir = dirname (exe_path);
 
     s = getenv ("LUA_CPATH");
-    setenvf ("LUA_CPATH", 1, "%s/dlua/?.so;%s", exe_dir, s ? s : ";;");
+    setenvf ("LUA_CPATH", 1, "%s/dlua/?.so;%s", exe_dir, s ? s : ";");
     s = getenv ("LUA_PATH");
-    setenvf ("LUA_PATH", 1, "%s/dlua/?.lua;%s", exe_dir, s ? s : ";;");
+    setenvf ("LUA_PATH", 1, "%s/dlua/?.lua;%s", exe_dir, s ? s : ";");
 
     flux_log (h, LOG_DEBUG, "LUA_PATH %s", getenv ("LUA_PATH"));
     flux_log (h, LOG_DEBUG, "LUA_CPATH %s", getenv ("LUA_CPATH"));
+
+    asprintf (&rdllib, "%s/lib/librdl.so", exe_dir);
+    if (!dlopen (rdllib, RTLD_NOW | RTLD_GLOBAL)) {
+        flux_log (h, LOG_ERR, "dlopen %s failed", rdllib);
+        return;
+    }
+    free(rdllib);
 
     rdllib_set_default_errf (h, (rdl_err_f)(&f_err));
 }
@@ -118,12 +128,12 @@ static void setup_rdl_lua (void)
  *              Queue Abstraction on Top of zlist
  *
  ****************************************************************/
-static int 
-init_internal_queues () 
+static int
+init_internal_queues ()
 {
     int rc = 0;
 
-    if (lwj_p || lwj_c || event) { 
+    if (lwj_p || lwj_c || event) {
         rc = -1;
         goto ret;
     }
@@ -136,13 +146,13 @@ init_internal_queues ()
     lwj_c->queue = zlist_new ();
     event->queue = zlist_new ();
 
-    if (!lwj_p->queue || !lwj_c->queue || !event->queue) { 
+    if (!lwj_p->queue || !lwj_c->queue || !event->queue) {
         rc = -1;
         goto ret;
     }
-    lwj_p->rewind = 0; 
-    lwj_c->rewind = 0; 
-    event->rewind = 0; 
+    lwj_p->rewind = 0;
+    lwj_c->rewind = 0;
+    event->rewind = 0;
 
 ret:
     return rc;
@@ -150,14 +160,14 @@ ret:
 
 
 #if 0 /* comment this in when this function is called */
-static int 
-destroy_internal_queues () 
+static int
+destroy_internal_queues ()
 {
     if (lwj_p->queue) {
         zlist_destroy (&lwj_p->queue);
         lwj_p->queue = NULL;
     }
-    if (lwj_c->queue) { 
+    if (lwj_c->queue) {
         zlist_destroy (&lwj_c->queue);
         lwj_c->queue = NULL;
     }
@@ -181,11 +191,11 @@ return_queue (queue_e t)
         break;
 
     case c_queue:
-        rq = lwj_c;       
+        rq = lwj_c;
         break;
 
     case ev_queue:
-        rq = event;       
+        rq = event;
         break;
 
     default:
@@ -237,7 +247,7 @@ ret:
 }
 
 
-static int 
+static int
 queue_iterator_reset (queue_e t)
 {
     int rc = 0;
@@ -253,7 +263,6 @@ queue_iterator_reset (queue_e t)
 
 ret:
     return rc;
-    
 }
 
 
@@ -269,7 +278,7 @@ queue_next (queue_e t)
     }
 
     if (q->rewind == 0) {
-       item = zlist_first (q->queue); 
+       item = zlist_first (q->queue);
        q->rewind = 1;
     }
     else {
@@ -281,7 +290,7 @@ ret:
 }
 
 
-static void 
+static void
 queue_remove (queue_e t, void *item)
 {
     queue_t *q = return_queue (t);
@@ -302,6 +311,7 @@ static int
 signal_event ( )
 {
     int rc = 0;
+
     if (kvs_put_int64 (h, "event-counter", ++event_count) < 0 ) {
         flux_log (h, LOG_ERR,
             "error kvs_put_int64 event-counter: %s",
@@ -321,26 +331,28 @@ ret:
 
 
 static flux_lwj_t *
-find_lwj (uint64_t id)
+find_lwj (int64_t id)
 {
     flux_lwj_t *j = NULL;
+
+    queue_iterator_reset (p_queue);
     while ( (j = queue_next (p_queue)) != NULL) {
-        if (j->lwj_id == id) 
+        if (j->lwj_id == id)
             break;
     }
-    queue_iterator_reset (p_queue);
+
     return j;
 }
 
 
 /****************************************************************
- * 
+ *
  *              Utility Functions
  *
  ****************************************************************/
 
 static inline void
-set_event (flux_event_t *e, 
+set_event (flux_event_t *e,
            event_class_e c, int ei, flux_lwj_t *j)
 {
     e->t = c;
@@ -360,8 +372,8 @@ set_event (flux_event_t *e,
 }
 
 
-static int 
-extract_lwjid (const char *k, uint64_t *i)
+static int
+extract_lwjid (const char *k, int64_t *i)
 {
     int rc = 0;
     char *kcopy = NULL;
@@ -380,25 +392,28 @@ extract_lwjid (const char *k, uint64_t *i)
         goto ret;
     }
     id = strtok (NULL, ".");
-    *i = strtol(id, (char **) NULL, 10);
-     
+    *i = strtoul(id, (char **) NULL, 10);
+
 ret:
     return rc;
 }
 
 
-static lwj_state_e 
+static lwj_state_e
 translate_state (const char *s)
 {
     lwj_state_e re = j_for_rent;
 
-    if (strcmp (s, LS_RESERVED) == 0) {
+    if (strcmp (s, LS_NULL) == 0) {
+        re = j_null;
+    }
+    else if (strcmp (s, LS_RESERVED) == 0) {
         re = j_reserved;
     }
     else if (strcmp (s, LS_SUBMITTED) == 0) {
         re = j_submitted;
     }
-    if (strcmp (s, LS_UNSCHED) == 0) {
+    else if (strcmp (s, LS_UNSCHED) == 0) {
         re = j_unsched;
     }
     else if (strcmp (s, LS_PENDING) == 0) {
@@ -426,20 +441,57 @@ translate_state (const char *s)
         re = j_reaped;
     }
     else {
-        flux_log (h, LOG_ERR, "Unknown state "); 
+        flux_log (h, LOG_ERR, "Unknown state %s", s);
     }
 
     return re;
 }
 
 
-static int 
-extract_lwjinfo (uint64_t val, flux_lwj_t *j)
+static int
+extract_lwjinfo (flux_lwj_t *j)
 {
-    //char *state;
+    char *key;
+    char *state;
+    int64_t reqnodes = 0;
+    int64_t reqtasks = 0;
 
-    /* TODO: extract from "lwj.val" lwj info */
-    //j->state = translate_state (state);
+    if (asprintf (&key, "lwj.%ld.state", j->lwj_id) < 0) {
+        flux_log (h, LOG_ERR, "extract_lwjinfo state key create failed");
+    } else if (kvs_get_string (h, key, &state) < 0) {
+        flux_log (h, LOG_ERR, "extract_lwjinfo %s: %s", key, strerror (errno));
+    } else {
+        j->state = translate_state(state);
+        flux_log (h, LOG_DEBUG, "extract_lwjinfo got %s: %s", key, state);
+        free(key);
+    }
+
+    if (asprintf (&key, "lwj.%ld.nnodes", j->lwj_id) < 0) {
+        flux_log (h, LOG_ERR, "extract_lwjinfo nnodes key create failed");
+    } else if (kvs_get_int64 (h, key, &reqnodes) < 0) {
+        flux_log (h, LOG_ERR, "extract_lwjinfo get %s: %s",
+                  key, strerror (errno));
+    } else {
+        j->req.nnodes = reqnodes;
+        flux_log (h, LOG_DEBUG, "extract_lwjinfo got %s: %ld", key, reqnodes);
+        free(key);
+    }
+
+    if (asprintf (&key, "lwj.%ld.ntasks", j->lwj_id) < 0) {
+        flux_log (h, LOG_ERR, "extract_lwjinfo ntasks key create failed");
+    } else if (kvs_get_int64 (h, key, &reqtasks) < 0) {
+        flux_log (h, LOG_ERR, "extract_lwjinfo get %s: %s",
+                  key, strerror (errno));
+    } else {
+        /* Assuming a 1:1 relationship right now between cores and tasks */
+        j->req.ncores = reqtasks;
+        flux_log (h, LOG_DEBUG, "extract_lwjinfo got %s: %ld", key, reqtasks);
+        free(key);
+    }
+
+    j->alloc.nnodes = 0;
+    j->alloc.ncores = 0;
+
     return 0;
 }
 
@@ -447,18 +499,19 @@ extract_lwjinfo (uint64_t val, flux_lwj_t *j)
 static void
 genev_kvs_st_chng (lwj_event_e e, flux_lwj_t *j)
 {
-    flux_event_t *ev 
+    flux_event_t *ev
         = (flux_event_t *) xzmalloc (sizeof (flux_event_t));
     ev->t = lwj_event;
     ev->ev.je = e;
     ev->lwj = j;
+
     if (enqueue (ev_queue, (void *) ev) == -1) {
-        flux_log (h, LOG_ERR, 
+        flux_log (h, LOG_ERR,
                   "enqueuing an event failed");
         goto ret;
     }
     if (signal_event () == -1) {
-        flux_log (h, LOG_ERR, 
+        flux_log (h, LOG_ERR,
                   "signaling an event failed");
         goto ret;
     }
@@ -493,76 +546,113 @@ load_resources()
 }
 
 /*
- * Assumes that the required resources are available, so walk the tree
- * find the required resources and change their state to "allocated".
+ * Walk the tree, find the required resources and tag with the lwj_id
+ * to which it is allocated.
  */
-static int
-allocate_resources (struct resource *r, const char *uri, flux_lwj_t *job)
+static bool
+allocate_resources (struct resource *r, flux_lwj_t *job)
 {
     const char *type;
-    int rc = -1;
     json_object *o;
     struct resource *c;
+    bool found = false;
 
-    rdl_resource_iterator_reset (r);
-    while ((c = rdl_resource_next_child (r))) {
-        o = rdl_resource_json (r);
-        Jget_str (o, "type", &type);
-        if  (strcmp (type, "node") == 0) {
-            flux_log (h, LOG_INFO, "found a node: %s",
-                      json_object_to_json_string (o));
-            rc = 0;
-        } else {
-            flux_log (h, LOG_INFO, "this is not a node: %s",
-                      json_object_to_json_string (o));
-        }
-        json_object_put (o);
+    o = rdl_resource_json (r);
+    flux_log (h, LOG_DEBUG, "considering resource: %s",
+              json_object_to_json_string (o));
+
+    Jget_str (o, "type", &type);
+    if  (job->req.nnodes && (strcmp (type, "node") == 0)) {
+        job->req.nnodes--;
+        job->alloc.nnodes++;
+        util_json_object_add_int64(o, "lwj", job->lwj_id);
+        flux_log (h, LOG_DEBUG, "allocated node: %s",
+                  json_object_to_json_string (o));
+    } else if  (job->req.ncores && (strcmp (type, "core")) == 0) {
+        job->req.ncores--;
+        job->alloc.ncores++;
+        util_json_object_add_int64(o, "lwj", job->lwj_id);
+        flux_log (h, LOG_DEBUG, "allocated core: %s",
+                  json_object_to_json_string (o));
+    }
+    json_object_put (o);
+
+    found = !(job->req.nnodes || job->req.ncores);
+
+    while (!found && (c = rdl_resource_next_child (r))) {
+        found = allocate_resources (c, job);
         rdl_resource_destroy (c);
     }
-    return rc;
+
+    return (found);
 }
 
+/*
+ * Add the allocated resources to the job and change its state to
+ * "allocated"
+ */
 static int
 update_job(flux_lwj_t *job)
 {
     int rc = -1;
-/* Add the allocated resources to the job and change its state to
-   "allocated" ( or perhaps "runrequest" ) */
+
+/* LEFT OFF HERE */
+
     return rc;
 }
 
 int schedule_job (struct rdl *rdl, const char *uri, flux_lwj_t *job)
 {
-    int nodes;
+    int64_t nodes;
     int rc = -1;
     json_object *o;
-    uint64_t reqnodes = job->req.nnodes;
+    uint64_t reqnodes = 0;
     struct resource *r = rdl_resource_get (rdl, uri);
+
     if (r == NULL) {
         flux_log (h, LOG_ERR, "Failed to get resource `%s'\n", uri);
         return rc;
     }
 
     o = rdl_resource_aggregate_json (r);
-    if (!util_json_object_get_int (0, "nodes", &nodes)) {
+    if (o) {
+        rc = util_json_object_get_int64 (o, "node", &nodes);
+        if (rc) {
+            flux_log (h, LOG_ERR, "schedule_job failed to get nodes: %d", rc);
+        } else {
+            flux_log (h, LOG_DEBUG, "schedule_job found %ld nodes", nodes);
+        }
+        json_object_put (o);
+    }
+
+    if (job) {
+        reqnodes = job->req.nnodes;
         if (nodes >= reqnodes) {
-            if (!allocate_resources(r, uri, job))
+            if (allocate_resources(r, job))
                 rc = update_job(job);
         }
+    } else {
+        flux_log (h, LOG_ERR, "schedule_job passed a null job");
     }
 
     return rc;
 }
 
-int schedule_jobs (struct rdl *rdl, const char *uri, flux_lwj_t *jobs)
+int schedule_jobs (struct rdl *rdl, const char *uri, queue_t *jobs)
 {
-    flux_lwj_t *job;
+    flux_lwj_t *job = NULL;
     int rc = -1;
 
-    while ((job = jobs)) {
+    job = (flux_lwj_t *)zlist_first (jobs->queue);
+    jobs->rewind = 1;
+
+    if (job)
         schedule_job(rdl, uri, job);
-        jobs++;
+
+    while ( (job = zlist_next (jobs->queue)) != NULL) {
+        schedule_job(rdl, uri, job);
     }
+
     return rc;
 }
 
@@ -573,12 +663,13 @@ int schedule_jobs (struct rdl *rdl, const char *uri, flux_lwj_t *jobs)
  *
  ****************************************************************/
 
-static int 
+static int
 request_run (flux_lwj_t *lwj)
 {
     int rc = 0;
     char kv[MAX_STR_LEN];
-    snprintf (kv, MAX_STR_LEN, "lwj.%ld.state", lwj->lwj_id);    
+
+    snprintf (kv, MAX_STR_LEN, "lwj.%ld.state", lwj->lwj_id);
     if (kvs_put_string (h, (const char *) kv, "request_run") < 0) {
         flux_log (h, LOG_ERR, "kvs_put error!");
         rc = -1;
@@ -592,15 +683,15 @@ request_run (flux_lwj_t *lwj)
     lwj->state = j_runrequest;
 
 ret:
-   return rc;
+    return rc;
 }
 
 
-static int 
+static int
 release_res (flux_lwj_t *lwj)
 {
     int rc = 0;
-    flux_event_t *newev 
+    flux_event_t *newev
         = (flux_event_t *) xzmalloc (sizeof (flux_event_t));
 
     // TODO: how to update the status of each entry as "free"
@@ -609,7 +700,7 @@ release_res (flux_lwj_t *lwj)
     // release lwj->resource
 
     newev->t = res_event;
-    newev->ev.re = r_released; 
+    newev->ev.re = r_released;
     newev->lwj = NULL;
 
     if (enqueue (ev_queue, (void *) newev) == -1) {
@@ -641,14 +732,33 @@ move_to_c_queue (flux_lwj_t *lwj)
 static int
 action_j_event (flux_event_t *e)
 {
+    /* e->lwj->state is the current state
+     * e->ev.je      is the new state
+     */
+    flux_log (h, LOG_DEBUG, "attempting job %ld state change from %d to %d",
+              e->lwj->lwj_id, e->lwj->state, e->ev.je);
     switch (e->lwj->state) {
+    case j_null:
+        if (e->ev.je == j_submitted) {
+            extract_lwjinfo (e->lwj);
+            if (e->lwj->state != e->ev.je) {
+                flux_log (h, LOG_ERR,
+                          "job %ld read state mismatch ", e->lwj->lwj_id);
+                goto bad_transition;
+            }
+            e->lwj->state = j_submitted;
+            flux_log (h, LOG_DEBUG, "setting %ld to submitted state",
+                      e->lwj->lwj_id);
+            schedule_jobs (rdl, "default", return_queue (p_queue));
+        }
+        break;
+
     case j_reserved:
-        /* ignore this state transition for now ... */
         break;
 
     case j_submitted:
         if (e->ev.je != j_unsched) {
-           goto bad_transition;
+            goto bad_transition;
         }
         // how can schedule_jobs generates j_pending or j_allocated??
         // TODO: schedule_jobs (/* pending queue, resource, e->lwj */);
@@ -669,35 +779,35 @@ action_j_event (flux_event_t *e)
 
     case j_allocated:
         if (e->ev.je != j_runrequest) {
-           goto bad_transition;
+            goto bad_transition;
         }
         request_run(e->lwj);
         break;
 
     case j_runrequest:
         if (e->ev.je != j_starting) {
-           goto bad_transition;
+            goto bad_transition;
         }
         e->lwj->state = j_starting;
         break;
 
     case j_starting:
         if (e->ev.je != j_running) {
-           goto bad_transition;
+            goto bad_transition;
         }
         e->lwj->state = j_running;
         break;
 
     case j_running:
         if (e->ev.je != j_complete) {
-           goto bad_transition;
+            goto bad_transition;
         }
         release_res (e->lwj);
         break;
 
     case j_complete:
         if (e->ev.je != j_reaped) {
-           goto bad_transition;
+            goto bad_transition;
         }
         move_to_c_queue (e->lwj);
         break;
@@ -707,14 +817,16 @@ action_j_event (flux_event_t *e)
         break;
 
     default:
-        flux_log (h, LOG_ERR, "unknown lwj state %d", e->lwj->state);
+        flux_log (h, LOG_ERR, "job %ld unknown state %d",
+                  e->lwj->lwj_id, e->lwj->state);
         break;
     }
 
     return 0;
 
 bad_transition:
-    flux_log (h, LOG_ERR, "bad transition");
+    flux_log (h, LOG_ERR, "job %ld bad state transition from %u to %u",
+              e->lwj->lwj_id, e->lwj->state, e->ev.je);
     return -1;
 }
 
@@ -724,9 +836,8 @@ action_r_event (flux_event_t *e)
 {
     int rc = -1;
 
-    if ((e->ev.je == r_released) 
-        || (e->ev.re == r_attempt)) {
-        //TODO: schedule_jobs ()
+    if ((e->ev.je == r_released) || (e->ev.re == r_attempt)) {
+        schedule_jobs (rdl, "default", return_queue (p_queue));
         rc = 0;
     }
 
@@ -747,7 +858,7 @@ action (flux_event_t *e)
     case res_event:
         rc = action_r_event (e);
         break;
- 
+
     default:
         flux_log (h, LOG_ERR, "unknown event type");
         break;
@@ -759,23 +870,23 @@ action (flux_event_t *e)
 
 /****************************************************************
  *
- *         Abstractions for KVS Callback Registeration 
+ *         Abstractions for KVS Callback Registeration
  *
  ****************************************************************/
-static int 
+static int
 wait_for_lwj_init ()
 {
     int rc = 0;
     kvsdir_t dir = NULL;
 
     if (kvs_watch_once_dir (h, &dir, "lwj") < 0) {
-        flux_log (h, LOG_ERR, "wait_for_lwj_init: %s", 
+        flux_log (h, LOG_ERR, "wait_for_lwj_init: %s",
                   strerror (errno));
         rc = -1;
         goto ret;
-    } 
-     
-    flux_log (h, LOG_INFO, "wait_for_lwj_init %s", 
+    }
+
+    flux_log (h, LOG_INFO, "wait_for_lwj_init %s",
               kvsdir_key(dir));
 
 ret:
@@ -792,7 +903,7 @@ reg_event_hdlr (KVSSetInt64F *func)
 
     event_count = 0;
     if (kvs_put_int64 (h, "event-counter", event_count) < 0 ) {
-        flux_log (h, LOG_ERR, 
+        flux_log (h, LOG_ERR,
             "error kvs_put_int64 event-counter: %s",
             strerror (errno));
         rc = -1;
@@ -804,11 +915,11 @@ reg_event_hdlr (KVSSetInt64F *func)
         goto ret;
     }
     if (kvs_watch_int64 (h, "event-counter", func, (void *) h) < 0) {
-        flux_log (h, LOG_ERR, "watch event-counter: %s", 
-		          strerror (errno));
-	    rc = -1;
+        flux_log (h, LOG_ERR, "watch event-counter: %s",
+                  strerror (errno));
+        rc = -1;
         goto ret;
-    } 
+    }
     flux_log (h, LOG_DEBUG, "registered event callback");
 
 ret:
@@ -816,13 +927,13 @@ ret:
 }
 
 
-static int 
+static int
 reg_newlwj_hdlr (KVSSetInt64F *func)
-{    
+{
     if (kvs_watch_int64 (h,"lwj.next-id", func, (void *) h) < 0) {
-        flux_log (h, LOG_ERR, "watch lwj.next-id: %s", 
-		          strerror (errno));
-	    return -1;
+        flux_log (h, LOG_ERR, "watch lwj.next-id: %s",
+                  strerror (errno));
+        return -1;
     }
     flux_log (h, LOG_DEBUG, "registered lwj creation callback");
 
@@ -830,7 +941,7 @@ reg_newlwj_hdlr (KVSSetInt64F *func)
 }
 
 
-static int 
+static int
 reg_lwj_state_hdlr (const char *path, KVSSetStringF *func)
 {
     int rc = 0;
@@ -838,8 +949,8 @@ reg_lwj_state_hdlr (const char *path, KVSSetStringF *func)
 
     asprintf (&k, "%s.state", path);
     if (kvs_watch_string (h, k, func, (void *)h) < 0) {
-        flux_log (h, LOG_ERR, 
-                  "watch a lwj state in %s: %s.", 
+        flux_log (h, LOG_ERR,
+                  "watch a lwj state in %s: %s.",
                   k, strerror (errno));
         rc = -1;
         goto ret;
@@ -855,10 +966,10 @@ ret:
 /****************************************************************
  *                KVS Watch Callback Functions
  ****************************************************************/
-static void 
+static void
 lwjstate_cb (const char *key, const char *val, void *arg, int errnum)
 {
-    uint64_t lwj_id;
+    int64_t lwj_id;
     flux_lwj_t *j = NULL;
     lwj_event_e e;
 
@@ -867,17 +978,18 @@ lwjstate_cb (const char *key, const char *val, void *arg, int errnum)
          * after registration.
          */
         if (errnum != ENOENT) {
-            flux_log (h, LOG_ERR, 
-                      "in lwjstate_cb key(%s), val(%s): %s", 
+            flux_log (h, LOG_ERR,
+                      "in lwjstate_cb key(%s), val(%s): %s",
                       key, val, strerror (errnum));
         }
         goto ret;
     }
-    
+
     if (extract_lwjid (key, &lwj_id) == -1) {
         flux_log (h, LOG_ERR, "ill-formed key");
         goto ret;
     }
+    flux_log (h, LOG_DEBUG, "lwjstate_cb: %ld", lwj_id);
 
     j = find_lwj (lwj_id);
     if (j) {
@@ -886,22 +998,21 @@ lwjstate_cb (const char *key, const char *val, void *arg, int errnum)
     }
 
 ret:
-    return;    
+    return;
 }
 
 /* The val argument is for the *next* job id.  Hence, the job id of
  * the new job will be (val - 1).
  */
-static void 
+static void
 newlwj_cb (const char *key, int64_t val, void *arg, int errnum)
 {
     char path[MAX_STR_LEN];
     flux_lwj_t *j = NULL;
-    flux_event_t *e = NULL;
 
     if (errnum > 0 || val < 0) {
-        flux_log (h, LOG_ERR, 
-                  "in newlwj_cb key(%s), val(%ld): %s", 
+        flux_log (h, LOG_ERR,
+                  "in newlwj_cb key(%s), val(%ld): %s",
                   key, val, strerror (errnum));
         goto error;
     } else {
@@ -911,53 +1022,33 @@ newlwj_cb (const char *key, int64_t val, void *arg, int errnum)
         flux_log (h, LOG_ERR, "oom");
         goto error;
     }
-    if ( !(e = (flux_event_t *) xzmalloc (sizeof (flux_event_t))) ) {
-        flux_log (h, LOG_ERR, "oom");
-        goto error;
-    }
-    if (extract_lwjinfo (val - 1, j) == -1) {
-        flux_log (h, LOG_ERR, 
-                  "extracting lwj info failed");
-        goto error;
-    }
-    snprintf (path, MAX_STR_LEN, "lwj.%ld", val - 1);
+    j->lwj_id = val - 1;
+    j->state = j_null;
+    snprintf (path, MAX_STR_LEN, "lwj.%ld", j->lwj_id);
     if (reg_lwj_state_hdlr (path, (KVSSetStringF *) lwjstate_cb) == -1) {
-        flux_log (h, LOG_ERR, 
+        flux_log (h, LOG_ERR,
                   "register lwj state change "
-                  "handling callback: %s",    
+                  "handling callback: %s",
                   strerror (errno));
         goto error;
     }
     if (enqueue (p_queue, (void *) j) == -1) {
-        flux_log (h, LOG_ERR, 
+        flux_log (h, LOG_ERR,
                   "appending a job to pending queue failed");
         goto error;
     }
-    set_event (e, lwj_event, j_submitted, j);
-    if (enqueue (ev_queue, (void *) e) == -1) {
-        flux_log (h, LOG_ERR, 
-                  "appending a job to event queue failed");
-        goto error;
-    }
-    if (signal_event () == -1) {
-        flux_log (h, LOG_ERR, 
-                  "signal the event enqueue event ");
-        goto error;
-    }
 
-    return; 
+    return;
 
 error:
     if (j)
         free (j);
-    if (e)
-        free (e);
 
-    return;    
+    return;
 }
 
 
-static void 
+static void
 event_cb (const char *key, int64_t *val, void *arg, int errnum)
 {
     flux_event_t *e = NULL;
@@ -973,7 +1064,7 @@ event_cb (const char *key, int64_t *val, void *arg, int errnum)
 
 /****************************************************************
  *
- *        High Level Job and Resource Event Handlers 
+ *        High Level Job and Resource Event Handlers
  *
  ****************************************************************/
 static int
@@ -984,45 +1075,45 @@ schedsvr_main (flux_t p, zhash_t *args)
 
     h = p;
     flux_log_set_facility (h, "schedsvr");
-    flux_log (h, LOG_INFO, "sched plugin starting"); 
+    flux_log (h, LOG_INFO, "sched comms module starting");
 
-    if (wait_for_lwj_init () == -1) {
-        flux_log (h, LOG_ERR, "wait for lwj failed: %s",    
-                  strerror (errno));
-        rc = -1;
-        goto ret; 
-    }
     if (load_resources () == -1) {
         flux_log (h, LOG_ERR, "failed to load resources: %s",
                   strerror (errno));
         rc = -1;
         goto ret;
     }
+    if (wait_for_lwj_init () == -1) {
+        flux_log (h, LOG_ERR, "wait for lwj failed: %s",
+                  strerror (errno));
+        rc = -1;
+        goto ret;
+    }
     if (init_internal_queues () == -1) {
-        flux_log (h, LOG_ERR, 
-                  "init for queues failed: %s",    
+        flux_log (h, LOG_ERR,
+                  "init for queues failed: %s",
                   strerror (errno));
         rc = -1;
         goto ret;
     }
     if (reg_newlwj_hdlr ((KVSSetInt64F*) newlwj_cb) == -1) {
-        flux_log (h, LOG_ERR, 
+        flux_log (h, LOG_ERR,
                   "register new lwj handling "
-                  "callback: %s",    
+                  "callback: %s",
                   strerror (errno));
         rc = -1;
         goto ret;
     }
     if (reg_event_hdlr ((KVSSetInt64F *) event_cb) == -1) {
-        flux_log (h, LOG_ERR, 
-                  "register event handling callback: %s",    
+        flux_log (h, LOG_ERR,
+                  "register event handling callback: %s",
                   strerror (errno));
         rc = -1;
         goto ret;
     }
     if (flux_reactor_start (h) < 0) {
-        flux_log (h, LOG_ERR, 
-                  "flux_reactor_start: %s", 
+        flux_log (h, LOG_ERR,
+                  "flux_reactor_start: %s",
                   strerror (errno));
         rc =  -1;
         goto ret;
@@ -1035,7 +1126,7 @@ ret:
 
 /****************************************************************
  *
- *                 EXTERNAL FUNCTIONS 
+ *                 EXTERNAL FUNCTIONS
  *
  ****************************************************************/
 

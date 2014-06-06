@@ -1,12 +1,12 @@
 /*
- *--------------------------------------------------------------------------------
+ *-------------------------------------------------------------------------------
  * Copyright and authorship blurb here
- *--------------------------------------------------------------------------------
- * scheduler.h - common data structure for scheduler framework and plugins 
+ *-------------------------------------------------------------------------------
+ * scheduler.h - common data structure for scheduler framework and plugins
  *
  * Update Log:
  * 	     May 24 2012 DHA: File created.
- */ 
+ */
 
 #ifndef SCHEDULER_H
 #define SCHEDULER_H 1
@@ -16,9 +16,10 @@
 
 
 /**
- *  Enumerates lightweight-job and resource events 
+ *  Enumerates lightweight-job and resource events
  */
 typedef enum {
+    j_null,      /*!< the state has yet to be assigned */
     j_reserved,  /*!< a job has a reservation in KVS*/
     j_submitted, /*!< a job added to KVS */
     j_unsched,   /*!< a job never gone through sched_loop */
@@ -38,9 +39,10 @@ typedef lwj_event_e lwj_state_e;
 
 
 /**
- *  Enumerates resource events 
+ *  Enumerates resource events
  */
 typedef enum {
+    r_null,      /*!< the state has yet to be assigned */
     r_added,     /*!< RDL reported some resources added */
     r_released,  /*!< a lwj released some resources */
     r_attempt,   /*!< attemp to schedule again */
@@ -61,7 +63,7 @@ typedef enum {
 
 /**
  *  Defines resources as provided by RDL.
- *  This is mostly a placeholder 
+ *  This is mostly a placeholder
  */
 typedef struct {
     void *resource;
@@ -84,14 +86,14 @@ typedef struct {
 typedef struct {
     int64_t lwj_id; /*!< LWJ id */
     lwj_state_e state;
-    flux_req_t req; /*!< resource requested by this LWJ */
-    zlist_t *resources; /*!< resource allocated */
+    flux_req_t req;   /*!< resource requested by this LWJ */
+    flux_req_t alloc; /*!< resource allocated to this LWJ */
 } flux_lwj_t;
 
 
 /**
  *  Defines an event that goes into the event queue
- */ 
+ */
 typedef struct {
     event_class_e t;    /*!< lwj or res event? */
     union u {

@@ -31,8 +31,8 @@ if not f then wreck:die ("flux.new: %s\n", err) end
 --
 local jobreq = wreck:jobreq ()
 
-wreck:say ("%4.03fs: Submitting LWJ request for %d tasks (cmdline \"%s\")\n",
-    tt:get0(), wreck.ntasks, table.concat (wreck.cmdline, ' '))
+wreck:say ("%4.03fs: Submitting LWJ request for %d nodes %d tasks (cmdline \"%s\")\n",
+    tt:get0(), wreck.nnodes, wreck.ntasks, table.concat (wreck.cmdline, ' '))
 
 --
 --  Send job request message with tag="job.create"
@@ -48,7 +48,7 @@ wreck:say ("%4.03fs: Submitted jobid %d\n", tt:get0(), resp.jobid)
 local lwj, err = f:kvsdir ("lwj.%d", resp.jobid)
 if not lwj then wreck:die ("f:kvsdir(lwj.%d): %s\n", resp.jobid, err) end
 
-lwj.state = "pending"
+lwj.state = "submitted"
 lwj:commit()
 
 os.exit (0)

@@ -14,6 +14,7 @@ local lwj_options = {
 
 local default_opts = {
     ['help']    = { char = 'h'  },
+    ['nnodes']  = { char = 'N', arg = "N" },
     ['ntasks']  = { char = 'n', arg = "N" },
     ['options'] = { char = 'o', arg = "OPTIONS.." },
 }
@@ -53,6 +54,7 @@ function wreck:usage()
     io.stderr:write ("Usage: "..self.prog.." OPTIONS.. COMMANDS..\n")
     io.stderr:write ([[
   -h, --help                 Display this message
+  -N, --nnodes=N             Request to run a total of N nodes
   -n, --ntasks=N             Request to run a total of N tasks
   -o, --options=OPTION,...   Set other options (See OTHER OPTIONS below)
 ]])
@@ -123,6 +125,7 @@ function wreck:parse_cmdline (arg)
         os.exit (1)
     end
 
+    self.nnodes = tonumber (self.opts.n) or 1
     self.ntasks = tonumber (self.opts.n) or 1
 
     self.cmdline = {}
@@ -135,8 +138,10 @@ end
 
 function wreck:jobreq ()
     if not self.opts then return nil, "Error: cmdline not parsed" end
+    local nnodes = tonumber (self.opts.n)
     local ntasks = tonumber (self.opts.n)
     local jobreq = {
+        nnodes =  tonumber (self.opts.n) or 1,
         ntasks =  tonumber (self.opts.n) or 1,
         cmdline = self.cmdline,
         environ = get_filtered_env (),
