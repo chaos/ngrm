@@ -978,8 +978,7 @@ lwjstate_cb (const char *key, const char *val, void *arg, int errnum)
          * after registration.
          */
         if (errnum != ENOENT) {
-            flux_log (h, LOG_ERR,
-                      "in lwjstate_cb key(%s), val(%s): %s",
+            flux_log (h, LOG_ERR, "lwjstate_cb key(%s), val(%s): %s",
                       key, val, strerror (errnum));
         }
         goto ret;
@@ -989,7 +988,7 @@ lwjstate_cb (const char *key, const char *val, void *arg, int errnum)
         flux_log (h, LOG_ERR, "ill-formed key");
         goto ret;
     }
-    flux_log (h, LOG_DEBUG, "lwjstate_cb: %ld", lwj_id);
+    flux_log (h, LOG_DEBUG, "lwjstate_cb: %ld, %s", lwj_id, val);
 
     j = find_lwj (lwj_id);
     if (j) {
@@ -1049,15 +1048,26 @@ error:
 
 
 static void
-event_cb (const char *key, int64_t *val, void *arg, int errnum)
+event_cb (const char *key, int64_t val, void *arg, int errnum)
 {
     flux_event_t *e = NULL;
+
+    if (errnum > 0) {
+        /* Ignore ENOENT.  It is expected when this cb is called right
+         * after registration.
+         */
+        if (errnum != ENOENT) {
+            flux_log (h, LOG_ERR, "event_cb key(%s), val(%ld): %s",
+                      key, val, strerror (errnum));
+        }
+        goto ret;
+    }
 
     while ( (e = dequeue (ev_queue)) != NULL) {
         action (e);
         free (e);
     }
-
+ret:
     return;
 }
 
@@ -1083,15 +1093,22 @@ schedsvr_main (flux_t p, zhash_t *args)
         rc = -1;
         goto ret;
     }
-    if (wait_for_lwj_init () == -1) {
-        flux_log (h, LOG_ERR, "wait for lwj failed: %s",
+    if (init_internal_queues () == -1) {
+        flux_log (h, LOG_ERR,
+                  "init for queues failed: %s",
                   strerror (errno));
         rc = -1;
         goto ret;
     }
-    if (init_internal_queues () == -1) {
+    if (reg_event_hdlr ((KVSSetInt64F*) event_cb) == -1) {
         flux_log (h, LOG_ERR,
-                  "init for queues failed: %s",
+                  "register event handling callback: %s",
+                  strerror (errno));
+        rc = -1;
+        goto ret;
+    }
+    if (wait_for_lwj_init () == -1) {
+        flux_log (h, LOG_ERR, "wait for lwj failed: %s",
                   strerror (errno));
         rc = -1;
         goto ret;
@@ -1100,13 +1117,6 @@ schedsvr_main (flux_t p, zhash_t *args)
         flux_log (h, LOG_ERR,
                   "register new lwj handling "
                   "callback: %s",
-                  strerror (errno));
-        rc = -1;
-        goto ret;
-    }
-    if (reg_event_hdlr ((KVSSetInt64F *) event_cb) == -1) {
-        flux_log (h, LOG_ERR,
-                  "register event handling callback: %s",
                   strerror (errno));
         rc = -1;
         goto ret;

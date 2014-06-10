@@ -276,4 +276,3 @@ int cstr_to_cpuset(cpu_set_t *mask, const char* str)
 
     return 0;
 }
-

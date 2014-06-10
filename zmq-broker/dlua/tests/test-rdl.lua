@@ -69,7 +69,7 @@ function test_children()
 uses "Socket"
 Hierarchy "default" {
   Resource {"node", name="foo", id=0,
-   children = { 
+   children = {
       Socket { id=0, cpus="0-3" },
       Socket { id=1, cpus="4-7" }
    }
@@ -158,7 +158,7 @@ function test_copy ()
 uses "Socket"
 Hierarchy "default" {
   Resource {"node", name="foo", id=0,
-   children = { 
+   children = {
       Socket { id=0, cpus="0-3" },
       Socket { id=1, cpus="4-7" }
    }
@@ -178,7 +178,7 @@ Hierarchy "default" {
 
     -- Copy:
     local slice = rdl:copy ("default:/foo0/socket1")
-    
+
     assert_not_nil (slice)
     assert_true (is_table (slice))
     local a = {
@@ -306,7 +306,7 @@ Hierarchy "default" {
         assert_equal ("default:/foo/"..name, r.uri)
         assert_equal ("/foo/"..name, r.path)
         assert_equal ("default", r.hierarchy_name)
-        
+
     end
 
 end

@@ -92,39 +92,64 @@ bool flux_treeroot (flux_t h)
     return treeroot;
 }
 
-int flux_route_add (flux_t h, const char *dst, const char *gw)
+int flux_rmmod (flux_t h, int rank, const char *name)
 {
     json_object *request = util_json_object_new_object ();
+    json_object *response = NULL;
     int rc = -1;
 
-    util_json_object_add_string (request, "gw", gw);
-    if (flux_request_send (h, request, "cmb.route.add.%s", dst) < 0)
+    util_json_object_add_string (request, "name", name);
+    if ((response = flux_rank_rpc (h, rank, request, "cmb.rmmod"))) {
+        errno = EPROTO;
+        goto done;
+    }
+    if (errno != 0)
         goto done;
     rc = 0;
 done:
     if (request)
         json_object_put (request);
+    if (response)
+        json_object_put (response);
     return rc;
 }
 
-int flux_route_del (flux_t h, const char *dst, const char *gw)
+json_object *flux_lsmod (flux_t h, int rank)
 {
     json_object *request = util_json_object_new_object ();
+    json_object *response = NULL;
+
+    response = flux_rank_rpc (h, rank, request, "cmb.lsmod");
+    if (request)
+        json_object_put (request);
+    return response;
+}
+
+int flux_insmod (flux_t h, int rank, const char *path, const char *name,
+                 json_object *args)
+{
+    json_object *request = util_json_object_new_object ();
+    json_object *response = NULL;
     int rc = -1;
 
-    util_json_object_add_string (request, "gw", gw);
-    if (flux_request_send (h, request, "cmb.route.del.%s", dst) < 0)
+    util_json_object_add_string (request, "name", name);
+    if (path)
+        util_json_object_add_string (request, "path", path);
+    json_object_get_object (args);
+    json_object_object_add (request, "args", args);
+    if ((response = flux_rank_rpc (h, rank, request, "cmb.insmod"))) {
+        errno = EPROTO;
+        goto done;
+    }
+    if (errno != 0)
         goto done;
     rc = 0;
 done:
     if (request)
         json_object_put (request);
+    if (response)
+        json_object_put (response);
     return rc;
-}
-
-json_object *flux_route_query (flux_t h)
-{
-    return flux_rpc (h, NULL, "cmb.route.query");
 }
 
 

@@ -85,7 +85,7 @@ static int l_cpu_set_new (lua_State *L)
             return (2); /* Error returns (nil, msg) */
     }
     else if (lua_istable (L, 1))
-        luaL_error (L, "Table is 1st arg to new(), did you mean cpu_set.new()"); 
+        luaL_error (L, "Table is 1st arg to new(), did you mean cpu_set.new()");
     else
         luaL_error (L, "Expected < 2 arguments to new, got %d", lua_gettop (L));
 

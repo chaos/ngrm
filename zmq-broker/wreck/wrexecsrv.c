@@ -59,9 +59,9 @@ static struct rexec_ctx *getctx (flux_t h)
 static void rexec_session_destroy (struct rexec_session *c)
 {
     if (c->zs_req)
-        zsocket_disconnect (c->zs_req, c->req_uri);
+        zsocket_disconnect (c->zs_req, "%s", c->req_uri);
     if (c->zs_rep)
-        zsocket_disconnect (c->zs_rep, c->rep_uri);
+        zsocket_disconnect (c->zs_rep, "%s", c->rep_uri);
     if (c->jobinfo)
         json_object_put (c->jobinfo);
     free (c);
@@ -435,17 +435,17 @@ static int event_cb (flux_t h, int typemask, zmsg_t **zmsg, void *arg)
 {
     struct rexec_ctx *ctx = arg;
     char *tag = cmb_msg_tag (*zmsg, false);
-    if (strncmp (tag, "rexec.run", 15) == 0) {
-        int64_t id = id_from_tag (tag + 16, NULL);
+    if (strncmp (tag, "rexec.run", 9) == 0) {
+        int64_t id = id_from_tag (tag + 10, NULL);
         if (id < 0)
             err ("Invalid rexec tag `%s'", tag);
         if (lwj_targets_this_node (ctx, id))
             spawn_exec_handler (ctx, id);
     }
-    else if (strncmp (tag, "rexec.kill", 16) == 0) {
+    else if (strncmp (tag, "rexec.kill", 10) == 0) {
         int sig = SIGKILL;
         char *endptr = NULL;
-        int64_t id = id_from_tag (tag + 17, &endptr);
+        int64_t id = id_from_tag (tag + 11, &endptr);
         if (endptr && *endptr == '.')
             sig = atoi (endptr);
         rexec_kill (ctx, id, sig);
