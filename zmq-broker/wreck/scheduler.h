@@ -24,8 +24,8 @@ typedef enum {
     j_submitted, /*!< a job added to KVS */
     j_unsched,   /*!< a job never gone through sched_loop */
     j_pending,   /*!< a job set to pending */
-    j_runrequest,/*!< a job is requested to be executed */
     j_allocated, /*!< a job got allocated to resource */
+    j_runrequest,/*!< a job is requested to be executed */
     j_starting,  /*!< a job is starting */
     j_running,   /*!< a job is running */
     j_cancelled, /*!< a job got cancelled */

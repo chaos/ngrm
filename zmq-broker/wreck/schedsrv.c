@@ -351,6 +351,56 @@ find_lwj (int64_t id)
  *
  ****************************************************************/
 
+static char * ctime_iso8601_now (char *buf, size_t sz)
+{
+    struct tm tm;
+    time_t now = time (NULL);
+
+    memset (buf, 0, sz);
+
+    if (!localtime_r (&now, &tm))
+        err_exit ("localtime");
+    strftime (buf, sz, "%FT%T", &tm);
+
+    return buf;
+}
+
+/*
+ * Update the job's kvs entry for state and mark the time.
+ * Intended to be part of a series of changes, so the caller must
+ * invoke the kvs_commit at some future point.
+ */
+int update_job_state (flux_lwj_t *job, const char *state)
+{
+    char buf [64];
+    char *key = NULL;
+    char *key2 = NULL;
+    int rc = -1;
+
+    ctime_iso8601_now (buf, sizeof (buf));
+
+    if (asprintf (&key, "lwj.%ld.state", job->lwj_id) < 0) {
+        flux_log (h, LOG_ERR, "update_job_state key create failed");
+    } else if (kvs_put_string (h, key, state) < 0) {
+        flux_log (h, LOG_ERR, "update_job_state %ld state update failed: %s",
+                  job->lwj_id, strerror (errno));
+    } else if (asprintf (&key2, "lwj.%ld.%s-time", job->lwj_id, state) < 0) {
+        flux_log (h, LOG_ERR, "update_job_state key2 create failed");
+    } else if (kvs_put_string (h, key2, buf) < 0) {
+        flux_log (h, LOG_ERR, "update_job_state %ld %s-time failed: %s",
+                  job->lwj_id, state, strerror (errno));
+    } else {
+        rc = 0;
+        flux_log (h, LOG_DEBUG, "updating job %ld state to %s",
+                  job->lwj_id, state);
+    }
+
+    free (key);
+    free (key2);
+
+    return rc;
+}
+
 static inline void
 set_event (flux_event_t *e,
            event_class_e c, int ei, flux_lwj_t *j)
@@ -451,7 +501,7 @@ translate_state (const char *s)
 static int
 extract_lwjinfo (flux_lwj_t *j)
 {
-    char *key;
+    char *key = NULL;
     char *state;
     int64_t reqnodes = 0;
     int64_t reqtasks = 0;
@@ -584,19 +634,72 @@ allocate_resources (struct resource *r, flux_lwj_t *job)
         rdl_resource_destroy (c);
     }
 
-    return (found);
+    return found;
 }
 
 /*
- * Add the allocated resources to the job and change its state to
- * "allocated"
+ * Create lwj entries to tell wrexecd how many tasks to launch per
+ * node.
+ * The key has the form:  lwj.<jobID>.rank.<nodeID>.cores
+ * The value will be the number of tasks to launch on that node.
+ */
+static int update_job_cores (flux_lwj_t *job)
+{
+    char *key = NULL;
+    int i;
+    uint32_t corespernode;
+    uint32_t extracores;
+    int rc = -1;
+
+    corespernode = job->alloc.ncores / job->alloc.nnodes;
+    extracores = job->alloc.ncores % job->alloc.nnodes;
+
+    if (asprintf (&key, "lwj.%ld.rank.%d.cores", job->lwj_id, 0) < 0) {
+        flux_log (h, LOG_ERR, "update_job key create failed");
+        goto ret;
+    } else if (kvs_put_int64 (h, key, corespernode + extracores) < 0) {
+        flux_log (h, LOG_ERR, "update_job %ld node failed: %s",
+                  job->lwj_id, strerror (errno));
+        goto ret;
+    }
+    free (key);
+
+    for (i = 1; i < job->alloc.nnodes; i++) {
+        if (asprintf (&key, "lwj.%ld.rank.%d.cores", job->lwj_id, i) < 0) {
+            flux_log (h, LOG_ERR, "update_job key create failed");
+            goto ret;
+        } else if (kvs_put_int64 (h, key, corespernode) < 0) {
+            flux_log (h, LOG_ERR, "update_job %ld node failed: %s",
+                      job->lwj_id, strerror (errno));
+            goto ret;
+        }
+        free (key);
+    }
+    rc = 0;
+ret:
+    return rc;
+}
+
+/*
+ * Add the allocated resources to the job,
+ * change its state to "runrequest", and
+ * issue the rexec.run message
  */
 static int
-update_job(flux_lwj_t *job)
+update_job (flux_lwj_t *job)
 {
     int rc = -1;
 
-/* LEFT OFF HERE */
+    if (update_job_state (job, LS_ALLOCATED)) {
+        flux_log (h, LOG_ERR, "update_job failed to update job %ld to %s",
+                  job->lwj_id, LS_ALLOCATED);
+    } else if (update_job_cores(job)) {
+        flux_log (h, LOG_ERR, "update_job %ld core update failed", job->lwj_id);
+    } else if (kvs_commit (h) < 0) {
+        flux_log (h, LOG_ERR, "kvs_commit error!");
+    } else {
+        rc = 0;
+    }
 
     return rc;
 }
@@ -610,7 +713,7 @@ int schedule_job (struct rdl *rdl, const char *uri, flux_lwj_t *job)
     struct resource *r = rdl_resource_get (rdl, uri);
 
     if (r == NULL) {
-        flux_log (h, LOG_ERR, "Failed to get resource `%s'\n", uri);
+        flux_log (h, LOG_ERR, "Failed to get resource %s", uri);
         return rc;
     }
 
@@ -664,25 +767,23 @@ int schedule_jobs (struct rdl *rdl, const char *uri, queue_t *jobs)
  ****************************************************************/
 
 static int
-request_run (flux_lwj_t *lwj)
+request_run (flux_lwj_t *job)
 {
-    int rc = 0;
-    char kv[MAX_STR_LEN];
+    int rc = -1;
 
-    snprintf (kv, MAX_STR_LEN, "lwj.%ld.state", lwj->lwj_id);
-    if (kvs_put_string (h, (const char *) kv, "request_run") < 0) {
-        flux_log (h, LOG_ERR, "kvs_put error!");
-        rc = -1;
-        goto ret;
-    }
-    if (kvs_commit (h) < 0) {
+    if (update_job_state (job, LS_RUNREQ) < 0) {
+        flux_log (h, LOG_ERR, "request_run failed to update job %ld to %s",
+                  job->lwj_id, LS_RUNREQ);
+    } else if (kvs_commit (h) < 0) {
         flux_log (h, LOG_ERR, "kvs_commit error!");
-        rc = -1;
-        goto ret;
+    } else if (flux_event_send (h, NULL, "rexec.run.%ld", job->lwj_id) < 0) {
+        flux_log (h, LOG_ERR, "request_run event send failed: %s",
+                  strerror (errno));
+    } else {
+        flux_log (h, LOG_DEBUG, "job %ld runrequest", job->lwj_id);
+        rc = 0;
     }
-    lwj->state = j_runrequest;
 
-ret:
     return rc;
 }
 
@@ -737,51 +838,53 @@ action_j_event (flux_event_t *e)
      */
     flux_log (h, LOG_DEBUG, "attempting job %ld state change from %d to %d",
               e->lwj->lwj_id, e->lwj->state, e->ev.je);
+
     switch (e->lwj->state) {
     case j_null:
-        if (e->ev.je == j_submitted) {
-            extract_lwjinfo (e->lwj);
-            if (e->lwj->state != e->ev.je) {
-                flux_log (h, LOG_ERR,
-                          "job %ld read state mismatch ", e->lwj->lwj_id);
-                goto bad_transition;
-            }
-            e->lwj->state = j_submitted;
-            flux_log (h, LOG_DEBUG, "setting %ld to submitted state",
-                      e->lwj->lwj_id);
-            schedule_jobs (rdl, "default", return_queue (p_queue));
+        if (e->ev.je != j_reserved) {
+            goto bad_transition;
         }
+        e->lwj->state = j_reserved;
         break;
 
     case j_reserved:
+        if (e->ev.je != j_submitted) {
+            goto bad_transition;
+        }
+        extract_lwjinfo (e->lwj);
+        if (e->lwj->state != j_submitted) {
+            flux_log (h, LOG_ERR,
+                      "job %ld read state mismatch ", e->lwj->lwj_id);
+            goto bad_transition;
+        }
+        flux_log (h, LOG_DEBUG, "setting %ld to submitted state",
+                  e->lwj->lwj_id);
+        schedule_jobs (rdl, "default", return_queue (p_queue));
         break;
 
     case j_submitted:
-        if (e->ev.je != j_unsched) {
+        if (e->ev.je != j_allocated) {
             goto bad_transition;
         }
-        // how can schedule_jobs generates j_pending or j_allocated??
-        // TODO: schedule_jobs (/* pending queue, resource, e->lwj */);
-        // for now, it should enqueue (ev_queue, e) and signal_event()
+        e->lwj->state = j_allocated;
+        request_run(e->lwj);
         break;
 
     case j_unsched:
-        if (e->ev.je == j_pending) {
-            e->lwj->state = j_pending;
-        }
-        else if (e->ev.je == j_allocated) {
-            e->lwj->state = j_allocated;
-        }
-        else {
-            goto bad_transition;
-        }
+        /* TODO */
+        goto bad_transition;
+        break;
+
+    case j_pending:
+        /* TODO */
+        goto bad_transition;
         break;
 
     case j_allocated:
         if (e->ev.je != j_runrequest) {
             goto bad_transition;
         }
-        request_run(e->lwj);
+        e->lwj->state = j_runrequest;
         break;
 
     case j_runrequest:
@@ -802,18 +905,28 @@ action_j_event (flux_event_t *e)
         if (e->ev.je != j_complete) {
             goto bad_transition;
         }
+        /* TODO move this to j_complete case once reaped is implemented */
+        move_to_c_queue (e->lwj);
         release_res (e->lwj);
+        break;
+
+    case j_cancelled:
+        /* TODO */
+        goto bad_transition;
         break;
 
     case j_complete:
         if (e->ev.je != j_reaped) {
             goto bad_transition;
         }
-        move_to_c_queue (e->lwj);
+//        move_to_c_queue (e->lwj);
         break;
 
-    case j_pending:
-        goto bad_transition;
+    case j_reaped:
+        if (e->ev.je != j_complete) {
+            goto bad_transition;
+        }
+        e->lwj->state = j_reaped;
         break;
 
     default:
@@ -1009,14 +1122,23 @@ newlwj_cb (const char *key, int64_t val, void *arg, int errnum)
     char path[MAX_STR_LEN];
     flux_lwj_t *j = NULL;
 
-    if (errnum > 0 || val < 0) {
-        flux_log (h, LOG_ERR,
-                  "in newlwj_cb key(%s), val(%ld): %s",
-                  key, val, strerror (errnum));
+    if (errnum > 0) {
+        /* Ignore ENOENT.  It is expected when this cb is called right
+         * after registration.
+         */
+        if (errnum != ENOENT) {
+            flux_log (h, LOG_ERR, "newlwj_cb key(%s), val(%ld): %s",
+                      key, val, strerror (errnum));
+            goto error;
+        }
+        goto ret;
+    } else if (val < 0) {
+        flux_log (h, LOG_ERR, "newlwj_cb key(%s), val(%ld)", key, val);
         goto error;
     } else {
         flux_log (h, LOG_DEBUG, "newlwj_cb key(%s), val(%ld)", key, val);
     }
+
     if ( !(j = (flux_lwj_t *) xzmalloc (sizeof (flux_lwj_t))) ) {
         flux_log (h, LOG_ERR, "oom");
         goto error;
@@ -1036,7 +1158,7 @@ newlwj_cb (const char *key, int64_t val, void *arg, int errnum)
                   "appending a job to pending queue failed");
         goto error;
     }
-
+ret:
     return;
 
 error:

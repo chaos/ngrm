@@ -514,6 +514,7 @@ int prog_ctx_get_nodeinfo (struct prog_ctx *ctx)
                  strerror (errno));
         ctx->nnodes = flux_size (ctx->flux);
         ctx->nodeid = ctx->noderank;
+        return (0);
     }
 
     i = kvsitr_create (rank);
@@ -537,7 +538,7 @@ int prog_ctx_get_nodeinfo (struct prog_ctx *ctx)
         ctx->globalbasis += ncores;
     }
     free (nodeids);
-    log_msg (ctx, "lwj.%ld: node%d: basis=%d\n",
+    log_msg (ctx, "lwj.%ld: node%d: basis=%d",
         ctx->id, ctx->nodeid, ctx->globalbasis);
     return (0);
 }
