@@ -51,6 +51,7 @@
  */
 typedef enum {
     p_queue,
+    r_queue,
     c_queue,
     ev_queue
 } queue_e;
@@ -71,6 +72,7 @@ typedef struct {
  *
  ****************************************************************/
 static queue_t *lwj_p = NULL;
+static queue_t *lwj_r = NULL;
 static queue_t *lwj_c = NULL;
 static queue_t *event = NULL;
 static flux_t h = NULL;
@@ -133,24 +135,27 @@ init_internal_queues ()
 {
     int rc = 0;
 
-    if (lwj_p || lwj_c || event) {
+    if (lwj_p || lwj_r || lwj_c || event) {
         rc = -1;
         goto ret;
     }
 
     lwj_p = (queue_t *) xzmalloc (sizeof (queue_t));
+    lwj_r = (queue_t *) xzmalloc (sizeof (queue_t));
     lwj_c = (queue_t *) xzmalloc (sizeof (queue_t));
     event = (queue_t *) xzmalloc (sizeof (queue_t));
 
     lwj_p->queue = zlist_new ();
+    lwj_r->queue = zlist_new ();
     lwj_c->queue = zlist_new ();
     event->queue = zlist_new ();
 
-    if (!lwj_p->queue || !lwj_c->queue || !event->queue) {
+    if (!lwj_p->queue || !lwj_r->queue || !lwj_c->queue || !event->queue) {
         rc = -1;
         goto ret;
     }
     lwj_p->rewind = 0;
+    lwj_r->rewind = 0;
     lwj_c->rewind = 0;
     event->rewind = 0;
 
@@ -166,6 +171,10 @@ destroy_internal_queues ()
     if (lwj_p->queue) {
         zlist_destroy (&lwj_p->queue);
         lwj_p->queue = NULL;
+    }
+    if (lwj_r->queue) {
+        zlist_destroy (&lwj_r->queue);
+        lwj_r->queue = NULL;
     }
     if (lwj_c->queue) {
         zlist_destroy (&lwj_c->queue);
@@ -188,6 +197,10 @@ return_queue (queue_e t)
     switch (t) {
     case p_queue:
         rq = lwj_p;
+        break;
+
+    case r_queue:
+        rq = lwj_r;
         break;
 
     case c_queue:
@@ -337,6 +350,14 @@ find_lwj (int64_t id)
 
     queue_iterator_reset (p_queue);
     while ( (j = queue_next (p_queue)) != NULL) {
+        if (j->lwj_id == id)
+            break;
+    }
+    if (j)
+        return j;
+
+    queue_iterator_reset (r_queue);
+    while ( (j = queue_next (r_queue)) != NULL) {
         if (j->lwj_id == id)
             break;
     }
@@ -823,9 +844,16 @@ ret:
 
 
 static int
-move_to_c_queue (flux_lwj_t *lwj)
+move_to_r_queue (flux_lwj_t *lwj)
 {
     queue_remove (p_queue, (void *) lwj);
+    return enqueue (r_queue, (void *) lwj);
+}
+
+static int
+move_to_c_queue (flux_lwj_t *lwj)
+{
+    queue_remove (r_queue, (void *) lwj);
     return enqueue (c_queue, (void *) lwj);
 }
 
@@ -899,6 +927,7 @@ action_j_event (flux_event_t *e)
             goto bad_transition;
         }
         e->lwj->state = j_running;
+        move_to_r_queue (e->lwj);
         break;
 
     case j_running:
