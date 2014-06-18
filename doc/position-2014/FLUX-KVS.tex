@@ -4,13 +4,11 @@ Key-Value Stores (KVS) have become ubiquitous building blocks in large-scale
 Internet services but have been underutilized in HPC~\cite{Wang:2013:USE:2503210.2503239}.
 We determined that a KVS would be a
 essential building block for our new system.
-After evaluating several prototypes, our current KVS is designed
-to exploit our persistent CMB networks so as to 
-provide KVS with multi-purpose data store, supporting various 
-HPC access patterns such as
-MPI bootstrapping through well-known interfaces (e.g., PMI),
-process monitoring, standard I/O streams, resource descriptions and
-configurations. 
+The \flux KVS is implemented as a comms module that utilizes the
+request-response and event overlay networks.  It provides a general
+purpose data store used by other \flux components, and supports
+the distributed caching and synchronization needed for parallel
+data exchanges, such as required for MPI bootstrap.
 
 %
 %Early \flux KVS's were based on Redis~\cite{Redis} and Twitter's
