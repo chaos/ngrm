@@ -164,9 +164,8 @@ ret:
 }
 
 
-#if 0 /* comment this in when this function is called */
-static int
-destroy_internal_queues ()
+static void
+destroy_internal_queues (void)
 {
     if (lwj_p->queue) {
         zlist_destroy (&lwj_p->queue);
@@ -184,9 +183,7 @@ destroy_internal_queues ()
         zlist_destroy (&event->queue);
         event->queue = NULL;
     }
-    return 0;
 }
-#endif
 
 
 static queue_t *
@@ -568,7 +565,7 @@ extract_lwjinfo (flux_lwj_t *j)
 
 
 static void
-genev_kvs_st_chng (lwj_event_e e, flux_lwj_t *j)
+issue_lwj_event (lwj_event_e e, flux_lwj_t *j)
 {
     flux_event_t *ev
         = (flux_event_t *) xzmalloc (sizeof (flux_event_t));
@@ -702,9 +699,8 @@ ret:
 }
 
 /*
- * Add the allocated resources to the job,
- * change its state to "runrequest", and
- * issue the rexec.run message
+ * Add the allocated resources to the job, and
+ * change its state to "allocated".
  */
 static int
 update_job (flux_lwj_t *job)
@@ -810,7 +806,7 @@ request_run (flux_lwj_t *job)
 
 
 static int
-release_res (flux_lwj_t *lwj)
+issue_res_event (flux_lwj_t *lwj)
 {
     int rc = 0;
     flux_event_t *newev
@@ -936,7 +932,7 @@ action_j_event (flux_event_t *e)
         }
         /* TODO move this to j_complete case once reaped is implemented */
         move_to_c_queue (e->lwj);
-        release_res (e->lwj);
+        issue_res_event (e->lwj);
         break;
 
     case j_cancelled:
@@ -1135,7 +1131,7 @@ lwjstate_cb (const char *key, const char *val, void *arg, int errnum)
     j = find_lwj (lwj_id);
     if (j) {
        e = translate_state (val);
-       genev_kvs_st_chng (e, j);
+       issue_lwj_event (e, j);
     }
 
 ret:
@@ -1280,6 +1276,7 @@ schedsvr_main (flux_t p, zhash_t *args)
         goto ret;
     }
 
+    destroy_internal_queues ();
 ret:
     return rc;
 }
