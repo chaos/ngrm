@@ -6,7 +6,8 @@ We determined that a KVS would be a
 essential building block for our new system.
 After evaluating several prototypes, our current KVS is designed
 to exploit our persistent CMB networks so as to 
-support various HPC access patterns such as
+provide KVS with multi-purpose data store, supporting various 
+HPC access patterns such as
 MPI bootstrapping through well-known interfaces (e.g., PMI),
 process monitoring, standard I/O streams, resource descriptions and
 configurations. 
@@ -36,7 +37,7 @@ value for an object, any subsequent accesses will never return previous values.}
 
 We achieve these properties with a simple design based on hash trees
 and content-addressable storage, borrowing ideas from
-ZFS~\cite{Bonwick03thezettabyte} and git.%~\cite{Chacon:2009:PG:1618548}.
+ZFS~\cite{Bonwick03thezettabyte} and git. %~\cite{Chacon:2009:PG:1618548}.
 %, and
 %Venti~\cite{Quinlan:2002:VNA:645371.651321}.
 JSON objects are placed in a content-addressable
