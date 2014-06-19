@@ -86,8 +86,9 @@ typedef struct {
 typedef struct {
     int64_t lwj_id; /*!< LWJ id */
     lwj_state_e state;
-    flux_req_t req;   /*!< resource requested by this LWJ */
-    flux_req_t alloc; /*!< resource allocated to this LWJ */
+    flux_req_t req;   /*!< count of resources requested by this LWJ */
+    flux_req_t alloc; /*!< count of resources allocated to this LWJ */
+    struct rdl *rdl;  /*!< resources allocated to this LWJ */
 } flux_lwj_t;
 
 

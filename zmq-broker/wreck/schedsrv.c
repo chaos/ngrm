@@ -288,11 +288,11 @@ queue_next (queue_e t)
     }
 
     if (q->rewind == 0) {
-       item = zlist_first (q->queue);
-       q->rewind = 1;
+        item = zlist_first (q->queue);
+        q->rewind = 1;
     }
     else {
-       item = zlist_next (q->queue);
+        item = zlist_next (q->queue);
     }
 
 ret:
@@ -324,8 +324,8 @@ signal_event ( )
 
     if (kvs_put_int64 (h, "event-counter", ++event_count) < 0 ) {
         flux_log (h, LOG_ERR,
-            "error kvs_put_int64 event-counter: %s",
-            strerror (errno));
+                  "error kvs_put_int64 event-counter: %s",
+                  strerror (errno));
         rc = -1;
         goto ret;
     }
@@ -426,15 +426,15 @@ set_event (flux_event_t *e,
     e->t = c;
     e->lwj = j;
     switch (c) {
-        case lwj_event:
-            e->ev.je = (lwj_event_e) ei;
-            break;
-        case res_event:
-            e->ev.re = (res_event_e) ei;
-            break;
-        default:
-            flux_log (h, LOG_ERR, "unknown ev class");
-            break;
+    case lwj_event:
+        e->ev.je = (lwj_event_e) ei;
+        break;
+    case res_event:
+        e->ev.re = (res_event_e) ei;
+        break;
+    default:
+        flux_log (h, LOG_ERR, "unknown ev class");
+        break;
     }
     return;
 }
@@ -523,11 +523,14 @@ extract_lwjinfo (flux_lwj_t *j)
     char *state;
     int64_t reqnodes = 0;
     int64_t reqtasks = 0;
+    int rc = -1;
 
     if (asprintf (&key, "lwj.%ld.state", j->lwj_id) < 0) {
         flux_log (h, LOG_ERR, "extract_lwjinfo state key create failed");
+        goto ret;
     } else if (kvs_get_string (h, key, &state) < 0) {
         flux_log (h, LOG_ERR, "extract_lwjinfo %s: %s", key, strerror (errno));
+        goto ret;
     } else {
         j->state = translate_state(state);
         flux_log (h, LOG_DEBUG, "extract_lwjinfo got %s: %s", key, state);
@@ -536,9 +539,11 @@ extract_lwjinfo (flux_lwj_t *j)
 
     if (asprintf (&key, "lwj.%ld.nnodes", j->lwj_id) < 0) {
         flux_log (h, LOG_ERR, "extract_lwjinfo nnodes key create failed");
+        goto ret;
     } else if (kvs_get_int64 (h, key, &reqnodes) < 0) {
         flux_log (h, LOG_ERR, "extract_lwjinfo get %s: %s",
                   key, strerror (errno));
+        goto ret;
     } else {
         j->req.nnodes = reqnodes;
         flux_log (h, LOG_DEBUG, "extract_lwjinfo got %s: %ld", key, reqnodes);
@@ -547,20 +552,24 @@ extract_lwjinfo (flux_lwj_t *j)
 
     if (asprintf (&key, "lwj.%ld.ntasks", j->lwj_id) < 0) {
         flux_log (h, LOG_ERR, "extract_lwjinfo ntasks key create failed");
+        goto ret;
     } else if (kvs_get_int64 (h, key, &reqtasks) < 0) {
         flux_log (h, LOG_ERR, "extract_lwjinfo get %s: %s",
                   key, strerror (errno));
+        goto ret;
     } else {
         /* Assuming a 1:1 relationship right now between cores and tasks */
         j->req.ncores = reqtasks;
         flux_log (h, LOG_DEBUG, "extract_lwjinfo got %s: %ld", key, reqtasks);
         free(key);
+        j->alloc.nnodes = 0;
+        j->alloc.ncores = 0;
+        j->rdl = NULL;
+        rc = 0;
     }
 
-    j->alloc.nnodes = 0;
-    j->alloc.ncores = 0;
-
-    return 0;
+ret:
+    return rc;
 }
 
 
@@ -618,8 +627,10 @@ load_resources()
  * to which it is allocated.
  */
 static bool
-allocate_resources (struct resource *r, flux_lwj_t *job)
+allocate_resources (struct resource *r, struct rdl_accumulator *a,
+                    flux_lwj_t *job)
 {
+    char *lwjtag = NULL;
     const char *type;
     json_object *o;
     struct resource *c;
@@ -630,29 +641,95 @@ allocate_resources (struct resource *r, flux_lwj_t *job)
               json_object_to_json_string (o));
 
     Jget_str (o, "type", &type);
-    if  (job->req.nnodes && (strcmp (type, "node") == 0)) {
+    asprintf (&lwjtag, "lwj.%ld", job->lwj_id);
+    if (job->req.nnodes && (strcmp (type, "node") == 0)) {
         job->req.nnodes--;
         job->alloc.nnodes++;
-        util_json_object_add_int64(o, "lwj", job->lwj_id);
+        rdl_resource_tag (r, lwjtag);
+        rdl_accumulator_add (a, r);
         flux_log (h, LOG_DEBUG, "allocated node: %s",
                   json_object_to_json_string (o));
-    } else if  (job->req.ncores && (strcmp (type, "core")) == 0) {
+    } else if (job->req.ncores && (strcmp (type, "core")) == 0) {
         job->req.ncores--;
         job->alloc.ncores++;
-        util_json_object_add_int64(o, "lwj", job->lwj_id);
+        rdl_resource_tag (r, lwjtag);
+        rdl_accumulator_add (a, r);
         flux_log (h, LOG_DEBUG, "allocated core: %s",
                   json_object_to_json_string (o));
     }
+    free (lwjtag);
     json_object_put (o);
 
     found = !(job->req.nnodes || job->req.ncores);
 
     while (!found && (c = rdl_resource_next_child (r))) {
-        found = allocate_resources (c, job);
+        found = allocate_resources (c, a, job);
         rdl_resource_destroy (c);
     }
 
     return found;
+}
+
+/*
+ * Recursively search the resource r and update this job's lwj key
+ * with the core count per rank (i.e., node for the time being)
+ */
+static int
+update_job_cores (struct resource *r, flux_lwj_t *job,
+                  uint64_t *pnode, uint32_t *pcores)
+{
+    bool imanode = false;
+    char *key = NULL;
+    char *lwjtag = NULL;
+    const char *type;
+    json_object *o = NULL;
+    json_object *o2 = NULL;
+    json_object *o3 = NULL;
+    struct resource *c;
+    int rc = 0;
+
+    o = rdl_resource_json (r);
+    flux_log (h, LOG_DEBUG, "considering: %s", json_object_to_json_string (o));
+
+    Jget_str (o, "type", &type);
+    if (strcmp (type, "node") == 0) {
+        *pcores = 0;
+        imanode = true;
+    } else if (strcmp (type, "core") == 0) {
+        /* we need to limit our allocation to just the tagged cores */
+        asprintf (&lwjtag, "lwj.%ld", job->lwj_id);
+        Jget_obj (o, "tags", &o2);
+        Jget_obj (o2, lwjtag, &o3);
+        if (o3) {
+            (*pcores)++;
+        }
+        free (lwjtag);
+    }
+    json_object_put (o);
+
+    while ((rc == 0) && (c = rdl_resource_next_child (r))) {
+        rc = update_job_cores (c, job, pnode, pcores);
+        rdl_resource_destroy (c);
+    }
+
+    if (imanode) {
+        if (asprintf (&key, "lwj.%ld.rank.%ld.cores", job->lwj_id,
+                      *pnode) < 0) {
+            flux_log (h, LOG_ERR, "update_job_cores key create failed");
+            rc = -1;
+            goto ret;
+        } else if (kvs_put_int64 (h, key, *pcores) < 0) {
+            flux_log (h, LOG_ERR, "update_job_cores %ld node failed: %s",
+                      job->lwj_id, strerror (errno));
+            rc = -1;
+            goto ret;
+        }
+        free (key);
+        (*pnode)++;
+    }
+
+ret:
+    return rc;
 }
 
 /*
@@ -661,40 +738,16 @@ allocate_resources (struct resource *r, flux_lwj_t *job)
  * The key has the form:  lwj.<jobID>.rank.<nodeID>.cores
  * The value will be the number of tasks to launch on that node.
  */
-static int update_job_cores (flux_lwj_t *job)
+static int
+update_job_resources (flux_lwj_t *job)
 {
-    char *key = NULL;
-    int i;
-    uint32_t corespernode;
-    uint32_t extracores;
+    uint64_t node = 0;
+    uint32_t cores = 0;
+    struct resource *r = rdl_resource_get (job->rdl, "default");
     int rc = -1;
 
-    corespernode = job->alloc.ncores / job->alloc.nnodes;
-    extracores = job->alloc.ncores % job->alloc.nnodes;
+    rc = update_job_cores (r, job, &node, &cores);
 
-    if (asprintf (&key, "lwj.%ld.rank.%d.cores", job->lwj_id, 0) < 0) {
-        flux_log (h, LOG_ERR, "update_job key create failed");
-        goto ret;
-    } else if (kvs_put_int64 (h, key, corespernode + extracores) < 0) {
-        flux_log (h, LOG_ERR, "update_job %ld node failed: %s",
-                  job->lwj_id, strerror (errno));
-        goto ret;
-    }
-    free (key);
-
-    for (i = 1; i < job->alloc.nnodes; i++) {
-        if (asprintf (&key, "lwj.%ld.rank.%d.cores", job->lwj_id, i) < 0) {
-            flux_log (h, LOG_ERR, "update_job key create failed");
-            goto ret;
-        } else if (kvs_put_int64 (h, key, corespernode) < 0) {
-            flux_log (h, LOG_ERR, "update_job %ld node failed: %s",
-                      job->lwj_id, strerror (errno));
-            goto ret;
-        }
-        free (key);
-    }
-    rc = 0;
-ret:
     return rc;
 }
 
@@ -710,8 +763,8 @@ update_job (flux_lwj_t *job)
     if (update_job_state (job, LS_ALLOCATED)) {
         flux_log (h, LOG_ERR, "update_job failed to update job %ld to %s",
                   job->lwj_id, LS_ALLOCATED);
-    } else if (update_job_cores(job)) {
-        flux_log (h, LOG_ERR, "update_job %ld core update failed", job->lwj_id);
+    } else if (update_job_resources(job)) {
+        flux_log (h, LOG_ERR, "update_job %ld resrc update failed", job->lwj_id);
     } else if (kvs_commit (h) < 0) {
         flux_log (h, LOG_ERR, "kvs_commit error!");
     } else {
@@ -727,6 +780,7 @@ int schedule_job (struct rdl *rdl, const char *uri, flux_lwj_t *job)
     int rc = -1;
     json_object *o;
     uint64_t reqnodes = 0;
+    struct rdl_accumulator *a = NULL;
     struct resource *r = rdl_resource_get (rdl, uri);
 
     if (r == NULL) {
@@ -748,8 +802,11 @@ int schedule_job (struct rdl *rdl, const char *uri, flux_lwj_t *job)
     if (job) {
         reqnodes = job->req.nnodes;
         if (nodes >= reqnodes) {
-            if (allocate_resources(r, job))
+            a = rdl_accumulator_create (rdl);
+            if (allocate_resources (r, a, job)) {
+                job->rdl = rdl_accumulator_copy (a);
                 rc = update_job(job);
+            }
         }
     } else {
         flux_log (h, LOG_ERR, "schedule_job passed a null job");
@@ -819,7 +876,7 @@ issue_res_event (flux_lwj_t *lwj)
 
     newev->t = res_event;
     newev->ev.re = r_released;
-    newev->lwj = NULL;
+    newev->lwj = lwj;
 
     if (enqueue (ev_queue, (void *) newev) == -1) {
         flux_log (h, LOG_ERR,
@@ -838,6 +895,54 @@ ret:
     return rc;
 }
 
+static int
+release_lwj_resource (struct resource *r, int64_t lwj_id)
+{
+    char *lwjtag = NULL;
+    int rc = -1;
+    json_object *o = NULL;
+    json_object *o2 = NULL;
+    json_object *o3 = NULL;
+    struct resource *c;
+
+    asprintf (&lwjtag, "lwj.%ld", lwj_id);
+    o = rdl_resource_json (r);
+    Jget_obj (o, "tags", &o2);
+    Jget_obj (o2, lwjtag, &o3);
+    if (o3) {
+        json_object_object_del(o2, lwjtag);
+        flux_log (h, LOG_DEBUG, "resource released: %s",
+                  json_object_to_json_string (o));
+        json_object_put (o3);
+    }
+    json_object_put (o);
+    json_object_put (o2);
+    free (lwjtag);
+
+    while ((c = rdl_resource_next_child (r))) {
+        release_lwj_resource (c, lwj_id);
+        rdl_resource_destroy (c);
+    }
+    return rc;
+}
+
+/*
+ * Find resources allocated to this job, and remove the lwj tag.
+ */
+int release_resources (struct rdl *rdl, const char *uri, flux_lwj_t *job)
+{
+    int rc = -1;
+    struct resource *r = rdl_resource_get (rdl, uri);
+
+    if (r) {
+        rc = release_lwj_resource (r, job->lwj_id);
+    } else {
+        flux_log (h, LOG_ERR, "release_resources failed to get resources: %s",
+                  strerror (errno));
+    }
+
+    return rc;
+}
 
 static int
 move_to_r_queue (flux_lwj_t *lwj)
@@ -975,6 +1080,7 @@ action_r_event (flux_event_t *e)
     int rc = -1;
 
     if ((e->ev.je == r_released) || (e->ev.re == r_attempt)) {
+        release_resources (rdl, "default", e->lwj);
         schedule_jobs (rdl, "default", return_queue (p_queue));
         rc = 0;
     }
@@ -1042,8 +1148,8 @@ reg_event_hdlr (KVSSetInt64F *func)
     event_count = 0;
     if (kvs_put_int64 (h, "event-counter", event_count) < 0 ) {
         flux_log (h, LOG_ERR,
-            "error kvs_put_int64 event-counter: %s",
-            strerror (errno));
+                  "error kvs_put_int64 event-counter: %s",
+                  strerror (errno));
         rc = -1;
         goto ret;
     }
@@ -1130,8 +1236,8 @@ lwjstate_cb (const char *key, const char *val, void *arg, int errnum)
 
     j = find_lwj (lwj_id);
     if (j) {
-       e = translate_state (val);
-       issue_lwj_event (e, j);
+        e = translate_state (val);
+        issue_lwj_event (e, j);
     }
 
 ret:
@@ -1276,6 +1382,7 @@ schedsvr_main (flux_t p, zhash_t *args)
         goto ret;
     }
 
+    rdllib_close(l);
     destroy_internal_queues ();
 ret:
     return rc;
