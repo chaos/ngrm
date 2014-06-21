@@ -35,6 +35,11 @@ check:
 		fi \
 	done
 
+check-rdl:
+	export LUA_CPATH=";;$(TOP)/dlua/?.so"; \
+        export LUA_PATH=";;$(TOP)/dlua/?.lua"; \
+	./trdl && echo PASS || echo FAIL
+
 tenc: tenc.o
 	$(CC) $(LDFLAGS) -o $@ $< $(LDADD_CLI)
 
