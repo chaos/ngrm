@@ -135,6 +135,9 @@ clean:
 	@make -C zutil clean
 	@for f in $(SUBDIRS) $(SUBDIRS_POST); do make -C $$f clean; done
 
+check:
+	for f in $(SUBDIRS) $(SUBDIRS_POST); do make -C $$f check; done
+
 check-%::
 	$(MAKE) -C test $(@)
 
