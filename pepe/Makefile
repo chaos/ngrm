@@ -1,7 +1,8 @@
-PMGRDIR = ../foreign/pmgr_collective/pmgr_collective-1.0_7
+TOP = $(shell cd .. && pwd)
+include $(TOP)/Makefile.inc
 
-LIBS := 	$(PMGRDIR)/lib/libpmgr_collective.a -llua
-CFLAGS :=       -I$(PMGRDIR)/include
+LIBS := 	$(PMGR_LIBS) $(LUA_LIBS)
+CFLAGS :=       $(PMGR_CFLAGS) $(LUA_CFLAGS)
 
 OBJECTS :=     list.o log_msg.o pepe-lua.o pepe-launcher.o optparse.o
 TARGET :=      pepe-launcher
