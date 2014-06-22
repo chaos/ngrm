@@ -1,8 +1,10 @@
+TOP = $(shell cd .. && pwd)
+include $(TOP)/Makefile.inc
 
-TOP =             $(shell pwd)
-LIBDIR =          $(TOP)/lib
-EXTRA_CFLAGS +=   -I$(TOP) -I$(TOP)/include -I$(TOP)/util -I$(TOP)/zutil
-EXTRA_LDFLAGS +=  -L$(TOP)/lib $(TOP)/zutil/libzutil.a $(TOP)/util/libutil.a
+ZTOP =             $(shell pwd)
+LIBDIR =          $(ZTOP)/lib
+EXTRA_CFLAGS +=   -I$(ZTOP) -I$(ZTOP)/include -I$(ZTOP)/util -I$(ZTOP)/zutil
+EXTRA_LDFLAGS +=  -L$(ZTOP)/lib $(ZTOP)/zutil/libzutil.a $(ZTOP)/util/libutil.a
 
 SUBDIRS :=        wreck dlua
 SUBDIRS_POST :=   test
@@ -16,16 +18,12 @@ MPIMOD = mvapich2-gnu-shmem
 # IPA
 #MPIMOD = mvapich2-gnu-ofa
 
-LUA_PKG = $(shell pkg-config --exists lua && echo lua || echo lua5.1)
-LUA_CFLAGS = $(shell pkg-config --silence-errors --cflags $(LUA_PKG))
-LUA_LIBS = $(shell pkg-config --silence-errors --libs $(LUA_PKG))
-
 CFLAGS = -Werror -Wall -g -fPIC $(EXTRA_CFLAGS) \
 	-I/usr/include/czmq \
 	-DWITH_LSD_NOMEM_ERROR_FUNC -DWITH_LSD_FATAL_ERROR_FUNC \
 	-DWANT_RECKLESS_HOSTRANGE_EXPANSION \
-	-DPLUGIN_PATH=\"$(TOP)/plugins\" \
-	-DEXEC_PATH=\"$(TOP)/libexec\" $(LUA_CFLAGS)
+	-DPLUGIN_PATH=\"$(ZTOP)/plugins\" \
+	-DEXEC_PATH=\"$(ZTOP)/libexec\" $(LUA_CFLAGS)
 LDFLAGS = -Wl,-rpath,$(LIBDIR)
 
 export CFLAGS LDFLAGS LUA_CFLAGS LUA_LIBS
@@ -89,7 +87,7 @@ flux: $(FLUX_OBJS) $(LIBCMB)
 	$(CC) $(LDFLAGS) -o $@ $(FLUX_OBJS) $(LDADD_CLI)
 
 libexec/rdltool : flux-rdltool.o
-	$(CC) $(LDFLAGS) -o $@ $< -L$(LIBDIR) -lrdl -lzmq -lczmq util/libutil.a
+	$(CC) $(LDFLAGS) -o $@ $< -L$(LIBDIR) -lrdl $(LDADD_CLI) $(LUA_LIBS)
 
 libexec/%: flux-%.o
 	mkdir -p $(shell dirname $@)
@@ -110,7 +108,7 @@ $(LIBCMB): $(LIBCMB_OBJS) $(LIBUTIL)
 $(LIBRDL): $(LIBRDL_OBJS) $(LIBUTIL)
 	mkdir -p $(shell dirname $@)
 	$(CC) -shared -Wl,--version-script=rdl_version.map \
-		-o $@ $(LIBRDL_OBJS) -llua -ljson
+		-o $@ $(LIBRDL_OBJS) $(LDADD_CLI) -ljson
 	ln -sf $(shell basename $@) $(@:.0=)
 
 $(LIBUTIL):

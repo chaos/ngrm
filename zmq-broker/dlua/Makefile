@@ -1,3 +1,5 @@
+TOP = $(shell cd ../.. && pwd)
+include $(TOP)/Makefile.inc
 
 all: flux.so cpuset.so libdlua.a
 
@@ -10,7 +12,7 @@ libdlua_SOURCES := json-lua.c zmsg-lua.c lutil.c flux-lua.c kvs-lua.c zmsg-lua.o
 
 LIBS     += -lcmb $(topdir)/zutil/libzutil.a $(topdir)/util/libutil.a
 LDFLAGS  += -L $(topdir)/lib -Wl,-rpath=$(topdir)/lib
-CFLAGS   += -I/usr/include/czmq -I$(topdir) -I$(topdir)/include
+CFLAGS   += -I/usr/include/czmq -I$(topdir) -I$(topdir)/include $(LUA_CFLAGS)
 
 
 .SUFFIXES: .c .o .so
@@ -23,7 +25,7 @@ flux.so:$(flux_OBJS)
 kvs.so:	$(kvs_OBJS)
 	$(CC) -shared -o $*.so $^ $(LDFLAGS) $(LIBS)
 cpuset.so: lua-cpuset.o cpuset-str.o
-	$(CC) -shared -o cpuset.so $^ -llua $(LDFLAGS)
+	$(CC) -shared -o cpuset.so $^ $(LUA_LIBS) $(LDFLAGS)
 
 jsontest.so: $(json_test_OBJS)
 	$(CC) -shared -o $*.so $^ $(LDFLAGS) -ljson
