@@ -1,15 +1,11 @@
-TOP =             $(shell pwd)/..
-LIBDIR =          $(TOP)/lib
-EXTRA_CFLAGS +=   -I$(TOP)/include -I$(TOP)/util
-EXTRA_LDFLAGS +=  -L$(TOP)/lib $(TOP)/util/libutil.a
+TOP = $(shell cd ../.. && pwd)
+include $(TOP)/Makefile.inc
 
-LDFLAGS = -Wl,-rpath,$(LIBDIR)
 
-export CFLAGS LDFLAGS
+CFLAGS = $(CMB_CFLAGS) $(UTIL_CFLAGS)
+LDFLAGS = $(CMB_LIBS) $(UTIL_LIBS) -ljson -lzmq -lczmq -lutil -lm -lpthread
 
-LDADD_CLI = $(EXTRA_LDFLAGS) -ljson -lzmq -lczmq -lutil -lm -lpthread
-
-BUILD = tenc tpmikvs tkvswatch tcommit tasyncsock tmunge
+BUILD = tenc tkvswatch tcommit tasyncsock tmunge
 
 all: $(BUILD)
 
@@ -32,22 +28,19 @@ check:
 	done
 
 tenc: tenc.o
-	$(CC) $(LDFLAGS) -o $@ $< $(LDADD_CLI)
-
-tpmikvs: tpmikvs.o
-	$(CC) $(LDFLAGS) -o $@ $< -L$(LIBDIR) -lpmi
+	$(CC) -o $@ $< $(LDFLAGS)
 
 tkvswatch: tkvswatch.o
-	$(CC) $(LDFLAGS) -o $@ $< $(LDADD_CLI) -lcmb
+	$(CC) $(LDFLAGS) -o $@ $< $(LDFLAGS)
 
 tcommit: tcommit.o
-	$(CC) $(LDFLAGS) -o $@ $< $(LDADD_CLI) -lcmb
+	$(CC) $(LDFLAGS) -o $@ $< $(LDFLAGS)
 
 tasyncsock: tasyncsock.o
-	$(CC) $(LDFLAGS) -o $@ $< $(LDADD_CLI) -lcmb
+	$(CC) $(LDFLAGS) -o $@ $< $(LDFLAGS)
 
 tmunge: tmunge.o
-	$(CC) $(LDFLAGS) -o $@ $< $(LDADD_CLI) -lcmb
+	$(CC) $(LDFLAGS) -o $@ $< $(LDFLAGS)
 
 clean:
 	rm -f *.o a.out

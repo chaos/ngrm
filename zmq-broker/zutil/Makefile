@@ -1,3 +1,6 @@
+TOP = $(shell cd ../.. && pwd)
+include $(TOP)/Makefile.inc
+
 topdir :=     $(shell cd .. && pwd)
 builddir :=   $(shell pwd)
 

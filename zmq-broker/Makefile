@@ -3,25 +3,14 @@ include $(TOP)/Makefile.inc
 
 ZTOP =             $(shell pwd)
 LIBDIR =          $(ZTOP)/lib
-EXTRA_CFLAGS +=   -I$(ZTOP) -I$(ZTOP)/include -I$(ZTOP)/util -I$(ZTOP)/zutil
+EXTRA_CFLAGS +=   -I$(ZTOP) -I$(ZTOP)/include $(UTIL_CFLAGS) -I$(ZTOP)/zutil
 EXTRA_LDFLAGS +=  -L$(ZTOP)/lib $(ZTOP)/zutil/libzutil.a $(ZTOP)/util/libutil.a
 
-SUBDIRS :=        wreck dlua
-SUBDIRS_POST :=   test
-
-# Uncomment for "native" MPI package
-#  (only needed for PMI tests)
-# Single node standalone
-MPIMOD = mvapich2-gnu-shmem
-# Hype
-#MPIMOD = mvapich2-gnu-psm
-# IPA
-#MPIMOD = mvapich2-gnu-ofa
+SUBDIRS :=        util wreck zutil
+SUBDIRS_POST :=   dlua test
 
 CFLAGS = -Werror -Wall -g -fPIC $(EXTRA_CFLAGS) \
 	-I/usr/include/czmq \
-	-DWITH_LSD_NOMEM_ERROR_FUNC -DWITH_LSD_FATAL_ERROR_FUNC \
-	-DWANT_RECKLESS_HOSTRANGE_EXPANSION \
 	-DPLUGIN_PATH=\"$(ZTOP)/plugins\" \
 	-DEXEC_PATH=\"$(ZTOP)/libexec\" $(LUA_CFLAGS)
 LDFLAGS = -Wl,-rpath,$(LIBDIR)
@@ -38,11 +27,9 @@ COMMON_OBJS = kvscli.o barriercli.o logcli.o cmbdcli.o mrpc.o handle.o \
 CMBD_OBJS = plugin.o $(COMMON_OBJS) cmbd.o
 
 FLUX_OBJS = flux.o
-LIBPMI_OBJS = pmi.o
 LIBCMB_OBJS = apicli.o $(COMMON_OBJS)
 LIBRDL_OBJS = rdl.o dlua/json-lua.o util/list.o
 
-LIBPMI = $(LIBDIR)/libpmi.so.0
 LIBCMB = $(LIBDIR)/libcmb.so.0
 LIBRDL = $(LIBDIR)/librdl.so.0
 
@@ -60,22 +47,25 @@ SUBCMDS = libexec/kvs libexec/ping libexec/mecho \
 	libexec/rmmod libexec/lsmod libexec/insmod libexec/modprobe \
 	libexec/rdltool
 
-BUILD = $(LIBCMB) $(LIBPMI) $(LIBRDL) flux mpi_hello echo cmbd \
+BUILD = $(LIBCMB) $(LIBRDL) flux echo cmbd \
 	$(PLUGINS) $(SUBCMDS)
 
-all: subdirs $(BUILD) subdirs_post
+all:
+	@for f in $(SUBDIRS); do make -C $$f $@; done
+	make $(BUILD)
+	@for f in $(SUBDIRS_POST); do make -C $$f $@; done
 
 plugins/%.so: %srv.c
 	mkdir -p plugins
-	$(CC) -shared $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBUTIL)
+	$(CC) -shared $(CFLAGS) $(LDFLAGS) -o $@ $< $(UTIL_LIBS)
 plugins/rexec.so: wreck/wrexecsrv.c
 	mkdir -p plugins
-	$(CC) -shared $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBUTIL)
+	$(CC) -shared $(CFLAGS) $(LDFLAGS) -o $@ $< $(UTIL_LIBS)
 plugins/%.so: wreck/%srv.c
 	mkdir -p plugins
-	$(CC) -shared $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBUTIL)
+	$(CC) -shared $(CFLAGS) $(LDFLAGS) -o $@ $< $(UTIL_LIBS)
 
-subdirs: $(LIBUTIL) $(LIBZUTIL) $(LIBCMB)
+subdirs:
 	@for f in $(SUBDIRS); do make -C $$f; done
 subdirs_post:
 	@for f in $(SUBDIRS_POST); do make -C $$f; done
@@ -92,12 +82,6 @@ libexec/rdltool : flux-rdltool.o
 libexec/%: flux-%.o
 	mkdir -p $(shell dirname $@)
 	$(CC) $(LDFLAGS) -o $@ $< -L$(LIBDIR) -lcmb $(LDADD_CLI)
-
-$(LIBPMI): $(LIBPMI_OBJS) $(LIBCMB)
-	mkdir -p $(shell dirname $@)
-	$(CC) -shared -Wl,--version-script=pmi_version.map \
-		-o $@ $(LIBPMI_OBJS) -L$(LIBDIR) -lcmb $(LDADD_CLI)
-	ln -sf $(shell basename $@) $(@:.0=)
 
 $(LIBCMB): $(LIBCMB_OBJS) $(LIBUTIL)
 	mkdir -p $(shell dirname $@)
@@ -116,42 +100,16 @@ $(LIBUTIL):
 $(LIBZUTIL):
 	@make -C zutil
 
-mpi_hello: mpi_hello.c
-	(source /etc/profile.d/modules.sh;\
-		module load $(MPIMOD);\
-		mpicc $(LDFLAGS) -o $@ $<)
-
 echo: echo.o
 	$(CC) $(LDFLAGS) -o $@ $< -L$(LIBDIR) -lcmb $(LDADD_CLI)
 
 clean:
+	@for f in $(SUBDIRS); do make -C $$f $@; done
 	rm -f *.o *.so $(BUILD)
-	rm -rf $(LIBDIR)/
-	rm -rf plugins/
-	rm -rf libexec
-	@make -C util clean
-	@make -C zutil clean
-	@for f in $(SUBDIRS) $(SUBDIRS_POST); do make -C $$f clean; done
+	rm -rf libexec plugins $(LIBDIR)
+	@for f in $(SUBDIRS_POST); do make -C $$f $@; done
 
 # header dependencies
-OBJS = $(CMBD_OBJS) $(FLUX_OBJS) $(LIBPMI_OBJS) $(LIBCMB_OBJS)
+OBJS = $(CMBD_OBJS) $(FLUX_OBJS) $(LIBCMB_OBJS)
 INCLUDES = $(wildcard *.h include/*.h)
 $(OBJS): $(INCLUDES)
-
-##
-## test targets
-##
-
-NTASKS = $(SLURM_JOB_NUM_NODES)  # override me
-SRUN = srun --overcommit -n$(NTASKS)
-
-hello: mpi_hello
-	time -p (source /etc/profile.d/modules.sh;\
-		module load $(MPIMOD);\
-		$(SRUN) ./mpi_hello)
-
-dokvstest: test/tpmikvs
-	export PMI_TRACE=0xff;\
-	$(SRUN) $<
-dokvstest_nsquared: test/tpmikvs
-	$(SRUN) $< --n-squared

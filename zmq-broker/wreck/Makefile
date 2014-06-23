@@ -1,9 +1,12 @@
+TOP = $(shell cd ../.. && pwd)
+include $(TOP)/Makefile.inc
+
 topdir  :=          $(shell cd .. && pwd)
 builddir  :=        $(shell pwd)
 programs =          wrexecd
 plugins  =          jobsrv.o resrcsrv.o schedsrv.o wrexecsrv.o
 
-CFLAGS +=           -ggdb -Wall -Werror \
+CFLAGS +=           -ggdb -Wall -Werror $(LUA_CFLAGS) \
                     -I$(topdir) -I$(topdir)/include -I$(topdir)/util
 LDFLAGS +=          -L$(topdir)/lib \
 		    -L$(topdir)/util \
