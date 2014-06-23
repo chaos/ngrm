@@ -10,21 +10,34 @@ texs =  Main.tex	 \
 	Abstract.tex	 \
 	Introduction.tex \
 	Paradigm.tex     \
-        Design.tex       \
         Conceptual.tex   \
 	FLUX.tex         \
 	FLUX-Overview.tex \
-	FLUX-Runtime.tex \
-	FLUX-CMB.tex     \
+	FLUX-CMB.tex \
+	FLUX-LWJ.tex \
 	FLUX-KVS.tex     \
 	Results-Perf.tex \
+	Results-KAP.tex \
+	Results-Setup.tex \
+	Results-Analysis.tex \
 	Results-Case.tex \
 	Related.tex      \
+	Discussions.tex \
 	Conclusion.tex        
 
 #txts = fig/mpa-code-frag.txt fig/Challenges.pdf
 
-bibs = project.bib
+bibs = ../bib/project.bib  ../bib/rfc.bib
+
+epsfigs = ../fig/kvs_update_1.eps \
+	../fig/kvs_update_2.eps \
+	../fig/kvs_update_3.eps \
+	../fig/tree-binary.eps \
+	../fig/tree-degenerate.eps \
+	../fig/tree-trinary.eps \
+	../fig/tree-binomial.eps \
+	../fig/tree-flat.eps
+
 
 #epsfigs = fig/fgfs_mpi_perf.eps \
 	  fig/fgfs_mpi_sync_perf.eps \
@@ -34,20 +47,20 @@ bibs = project.bib
 
 pdffigs = $(epsfigs:.eps=.pdf) 
 
-styles = llncs.cls splncs.bst splncs03.bst splncs_srt.bst
+styles = IEEEtran.cls 
 
 ########################################################################
 
-all: Flux-JSSPP.pdf 
+all: Flux-SRMPDS.pdf 
 
-Flux-JSSPP.pdf: $(texs) $(bibs) $(pdffigs) $(txts) $(styles)
+Flux-SRMPDS.pdf: $(texs) $(bibs) $(pdffigs) $(txts) $(styles)
 	$(pdflatex) Main
 	bibtex Main
 	$(pdflatex) Main
 	$(pdflatex) Main
 	mv Main.pdf $@
 
-Flux-JSSPP.ps: %.ps: %.dvi $(epsfigs)
+Flux-SRMPD.ps: %.ps: %.dvi $(epsfigs)
 	$(dvips)
 
 Flux-JSSPP.dvi: $(texs) $(bibs) $(epsfigs) $(txts) $(styles)
@@ -64,11 +77,11 @@ $(pdffigs): %.pdf: %.eps
 
 clean:
 	rm -f Main.aux Main.bib Main.dvi Main.log Main.blg Main.bbl Main.cb Main.cb2 Main.out
-	rm -f $(epsfigs)
 	rm -f $(pdffigs)
-	rm -rf Flux-JSSPP.pdf Main.pdf
+	rm -rf Flux-SRMPDS.pdf Main.pdf
 
 clobber: clean	
-	rm -f Flux-JSSPP.pdf
+	rm -f Flux-SRMPDS.pdf
 
-
+view: Flux-SRMPDS.pdf
+	evince $<

@@ -1,45 +1,69 @@
-\documentclass{llncs}
-\usepackage{makeidx}  % allows for indexgeneration
+\documentclass[conference]{IEEEtran}
+
+\sloppy
+
+%\pdfpagewidth=8.5in
+%\pdfpageheight=11in
+
+
+\usepackage{graphicx}
+\usepackage{epstopdf}
+\usepackage{subfigure}
+\usepackage{wrapfig}
+\usepackage{caption}
+%\usepackage{subcaption}
+%\usepackage{subfig}
+\usepackage{amsmath}
+\usepackage{xspace}
+\usepackage{authblk}
+\usepackage{url}
+
+\graphicspath{ {../fig/} }
 
 % enable/disable margin comments
 \newif\ifcomments
 %\commentsfalse
 \commentstrue
 
-\pagestyle{headings} 
-
+%\pagestyle{headings}
 
 \begin{document}
 
 \title{FLUX: A Next-Generation Resource Management Framework for Large HPC Centers}
-%\titlerunning{FLUX}
+\author{Dong H. Ahn, Jim Garlick, Mark Grondona, Don Lipari, Becky Springmeyer, Martin Schulz}
+\affil{Lawrence Livermore National Laboratory, \\
+       Computation Directorate, \\ 
+       Livermore, CA 94550 \\
+       \{ahn1,garlick,grondona1,lipari1,springme,schulzm\}@llnl.gov}
 
-\author{Dong H. Ahn \and Jim Garlick \and Mark Grondona \and Don Lipari \and Becky Springmeyer}
-\institute{Lawrence Livermore National Laboratory, Livermore, CA 94550, USA, \\
-\email{\{ahn1,garlick,grondona1,lipari1,springme\}@llnl.gov}
-}
-\authorrunning{Ahn, Garlick, Grondona, Lipari, Springmeyer}
-
+\date{}
 \maketitle
 
+
+\newcommand{\flux}{Flux\xspace}
+\newcommand{\zMQ}{\O{}MQ}
+
+
 \input{Abstract}
+\begin{IEEEkeywords}
+resource management, communication framework, run-time, key value store, 
+scalable process management services.
+\end{IEEEkeywords}
 \input{Introduction}
 \input{Paradigm}
-\input{Design}
 \input{Conceptual}
 \input{FLUX}
 \input{FLUX-Overview}
-\input{FLUX-Runtime}
-\input{FLUX-LWJ}
 \input{FLUX-CMB}
 \input{FLUX-KVS}
+%\input{FLUX-LWJ}
 \input{Results-Perf}
-\input{Results-Case}
+%\input{Results-Case}
 \input{Related}
 \input{Discussions}
 \input{Conclusion}
 
-\bibliographystyle{splncs}
-\bibliography{project}
+\bibliographystyle{IEEEtran}
+\bibliography{../bib/project.bib,../bib/rfc.bib}
 
 \end{document}

@@ -10,7 +10,7 @@
 #include "util.h"
 #include "log.h"
 
-#define OPTIONS "hdCDNqm:s:r:vV:"
+#define OPTIONS "hdCDNqm:s:r:vV:L"
 static const struct option longopts[] = {
     {"help",       no_argument,  0, 'h'},
     {"no-commit",  no_argument,  0, 'C'},
@@ -23,6 +23,7 @@ static const struct option longopts[] = {
     {"readlink",   required_argument,  0, 'r'},
     {"wait-version", required_argument,  0, 'V'},
     {"get-version", no_argument,  0, 'v'},
+    {"large-value", no_argument,  0, 'L'},
     { 0, 0, 0, 0 },
 };
 
@@ -68,6 +69,7 @@ int main (int argc, char *argv[])
     char *readlink_name = NULL;
     bool vopt = false;
     bool Vopt = false;
+    bool Lopt = false;
     int version;
 
     log_init ("flux-kvs");
@@ -108,17 +110,23 @@ int main (int argc, char *argv[])
                 Vopt = true;
                 version = strtoul (optarg, NULL, 10);
                 break;
+            case 'L': /* --large-value */
+                Lopt = true;
+                break;
             default:
                 usage ();
                 break;
         }
     }
-    if (optind == argc && !(dopt || Dopt || mkdir_name || symlink_name || readlink_name || vopt || Vopt))
+    if (optind == argc && !(dopt || Dopt || mkdir_name || symlink_name || readlink_name || vopt || Vopt || Lopt))
         usage ();
 
     if (!(h = cmb_init ()))
         err_exit ("cmb_init");
 
+    if (Lopt) {
+        printf ("large value = %lu bytes\n", (sizeof (href_t) + 1));
+    }
     if (dopt) {
         if (kvs_dropcache (h) < 0)
             err_exit ("kvs_dropcache");
