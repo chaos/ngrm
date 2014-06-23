@@ -36,7 +36,7 @@ LDADD_CLI = $(EXTRA_LDFLAGS) -ljson -lzmq -lczmq -lutil -lm -lmunge
 LDADD_SRV = -pthread -rdynamic $(LDADD_CLI) -ldl
 
 COMMON_OBJS = kvscli.o barriercli.o logcli.o cmbdcli.o mrpc.o handle.o \
-	waitqueue.o security.o eventcli.o rankcli.o reduce.o
+	waitqueue.o security.o eventcli.o rankcli.o reduce.o modctlcli.o
 CMBD_OBJS = plugin.o $(COMMON_OBJS) cmbd.o
 
 FLUX_OBJS = flux.o
@@ -52,15 +52,15 @@ PLUGINS = plugins/api.so plugins/hb.so plugins/kvs.so \
 	plugins/barrier.so plugins/live.so plugins/mecho.so \
 	plugins/log.so plugins/echo.so plugins/job.so \
 	plugins/resrc.so plugins/rexec.so plugins/sched.so \
-	plugins/event.so plugins/rank.so plugins/mon.so
+	plugins/event.so plugins/rank.so plugins/mon.so \
+	plugins/modctl.so
 
 SUBCMDS = libexec/kvs libexec/ping libexec/mecho \
 	libexec/stats libexec/barrier libexec/snoop libexec/event \
 	libexec/kvswatch libexec/kvsdir libexec/kvstorture \
 	libexec/logger libexec/log libexec/info libexec/kvscopy \
 	libexec/zio libexec/up libexec/host libexec/keygen libexec/mon \
-	libexec/rmmod libexec/lsmod libexec/insmod libexec/modprobe \
-	libexec/rdltool
+	libexec/rdltool libexec/mod
 
 BUILD = $(LIBCMB) $(LIBPMI) $(LIBRDL) flux mpi_hello echo cmbd \
 	$(PLUGINS) $(SUBCMDS)
@@ -93,7 +93,7 @@ libexec/rdltool : flux-rdltool.o
 
 libexec/%: flux-%.o
 	mkdir -p $(shell dirname $@)
-	$(CC) $(LDFLAGS) -o $@ $< -L$(LIBDIR) -lcmb $(LDADD_CLI)
+	$(CC) $(LDFLAGS) -o $@ $< -L$(LIBDIR) -lcmb $(LDADD_CLI) -ldl
 
 $(LIBPMI): $(LIBPMI_OBJS) $(LIBCMB)
 	mkdir -p $(shell dirname $@)

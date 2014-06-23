@@ -45,18 +45,19 @@ struct plugin_ctx_struct {
     void *zs_svc[2]; /* for handling requests 0=plugin, 1=cmbd */
     void *zs_evin;
     char *svc_uri;
-    char *uuid;
+    zuuid_t *uuid;
     pthread_t t;
-    const struct plugin_ops *ops;
+    mod_main_f *main;
     plugin_stats_t stats;
     zloop_t *zloop;
     zlist_t *deferred_responses;
     void *zctx;
     flux_sec_t sec;
     flux_t h;
-    char *name;
-    zfile_t *zf;
+    const char *name;
     void *dso;
+    int size;
+    char *digest;
     zhash_t *args;
     int rank;
     bool reactor_stop;
@@ -548,10 +549,8 @@ static void *plugin_thread (void *arg)
     register_request (p, "rusage", rusage_cb);
     register_event   (p, "stats.*", stats_cb);
 
-    if (!p->ops->main)
-        err_exit ("%s: Plugin must define 'main' method", p->name);
-    if (p->ops->main(p->h, p->args) < 0) {
-        err ("%s: main returned error", p->name);
+    if (p->main(p->h, p->args) < 0) {
+        err ("%s: mod_main returned error", p->name);
         goto done;
     }
 done:
@@ -568,7 +567,7 @@ const char *plugin_name (plugin_ctx_t p)
 
 const char *plugin_uuid (plugin_ctx_t p)
 {
-    return p->uuid;
+    return zuuid_str (p->uuid);
 }
 
 void *plugin_sock (plugin_ctx_t p)
@@ -578,12 +577,12 @@ void *plugin_sock (plugin_ctx_t p)
 
 const char *plugin_digest (plugin_ctx_t p)
 {
-    return zfile_digest (p->zf);
+    return p->digest;
 }
 
 int plugin_size (plugin_ctx_t p)
 {
-    return (int)zfile_cursize (p->zf);
+    return p->size;
 }
 
 void plugin_destroy (plugin_ctx_t p)
@@ -591,9 +590,13 @@ void plugin_destroy (plugin_ctx_t p)
     int errnum;
     zmsg_t *zmsg;
 
-    errnum = pthread_join (p->t, NULL);
-    if (errnum)
-        errn_exit (errnum, "pthread_join");
+    if (p->t) {
+        errnum = pthread_join (p->t, NULL);
+        if (errnum)
+            errn_exit (errnum, "pthread_join");
+    }
+
+    flux_handle_destroy (&p->h);
 
     zsocket_destroy (p->zctx, p->zs_evin);
     zsocket_destroy (p->zctx, p->zs_svc[0]);
@@ -605,39 +608,61 @@ void plugin_destroy (plugin_ctx_t p)
     zlist_destroy (&p->deferred_responses);
 
     dlclose (p->dso);
-    zfile_destroy (&p->zf);
-    free (p->name);
-    free (p->uuid);
+    zuuid_destroy (&p->uuid);
     free (p->svc_uri);
+    free (p->digest);
 
     free (p);
 }
 
-void plugin_unload (plugin_ctx_t p)
+void plugin_stop (plugin_ctx_t p)
 {
     zstr_send (p->zs_svc[1], ""); /* EOF */
 }
 
-plugin_ctx_t plugin_load (flux_t h, const char *path,
-                          const char *name, const char *uuid, zhash_t *args)
+void plugin_start (plugin_ctx_t p)
+{
+    int errnum;
+    errnum = pthread_create (&p->t, NULL, plugin_thread, p);
+    if (errnum)
+        errn_exit (errnum, "pthread_create");
+}
+
+char *plugin_getstring (const char *path, const char *name)
+{
+    void *dso;
+    char *s = NULL;
+    const char **np;
+
+    if (!(dso = dlopen (path, RTLD_NOW | RTLD_LOCAL)))
+        goto done;
+    if (!(np = dlsym (dso, name)) || !*np)
+        goto done;
+    s = xstrdup (*np);
+done:
+    if (dso)
+        dlclose (dso);
+    return s;
+}
+
+plugin_ctx_t plugin_create (flux_t h, const char *path, zhash_t *args)
 {
     plugin_ctx_t p;
-    int errnum;
-    const struct plugin_ops *ops;
     void *dso;
-    char *errstr;
+    const char **mod_namep;
+    mod_main_f *mod_main;
+    zfile_t *zf;
 
     dlerror ();
     if (!(dso = dlopen (path, RTLD_NOW | RTLD_LOCAL))) {
-        if ((errstr = dlerror ()) != NULL)
-            msg ("%s", errstr);
+        msg ("%s", dlerror ());
         errno = ENOENT;
         return NULL;
     }
-    dlerror ();
-    ops = (const struct plugin_ops *)dlsym (dso, "ops");
-    if ((errstr = dlerror ()) != NULL) {
-        err ("%s", errstr);
+    mod_main = dlsym (dso, "mod_main");
+    mod_namep = dlsym (dso, "mod_name");
+    if (!mod_main || !mod_namep || !*mod_namep) {
+        err ("%s: mod_main or mod_name undefined", path);
         dlclose (dso);
         errno = ENOENT;
         return NULL;
@@ -648,29 +673,30 @@ plugin_ctx_t plugin_load (flux_t h, const char *path,
     p->zctx = flux_get_zctx (h);
     p->sec = flux_get_sec (h);
     p->args = args;
-    p->ops = ops;
+    p->main = mod_main;
     p->dso = dso;
-    p->zf = zfile_new (NULL, path);
-    p->name = xstrdup (name);
-    if (asprintf (&p->svc_uri, "inproc://svc-%s", name) < 0)
+    zf = zfile_new (NULL, path);
+    p->digest = xstrdup (zfile_digest (zf));
+    p->size = (int)zfile_cursize (zf);
+    zfile_destroy (&zf);
+    p->name = *mod_namep;
+    if (asprintf (&p->svc_uri, "inproc://svc-%s", p->name) < 0)
         oom ();
-    p->uuid = xstrdup (uuid);
+    if (!(p->uuid = zuuid_new ()))
+        oom ();
     p->rank = flux_rank (h);
     if (!(p->deferred_responses = zlist_new ()))
         oom ();
 
     p->h = handle_create (p, &plugin_handle_ops, 0);
-    flux_log_set_facility (p->h, name);
+    flux_log_set_facility (p->h, p->name);
 
     /* connect sockets in the parent, then use them in the thread */
-    zconnect (p->zctx, &p->zs_request, ZMQ_DEALER, REQUEST_URI, -1, p->uuid);
+    zconnect (p->zctx, &p->zs_request, ZMQ_DEALER, REQUEST_URI, -1,
+              zuuid_str (p->uuid));
     zbind (p->zctx, &p->zs_svc[1], ZMQ_PAIR, p->svc_uri, -1);
     zconnect (p->zctx, &p->zs_svc[0], ZMQ_PAIR, p->svc_uri, -1, NULL);
     zconnect (p->zctx, &p->zs_evin,  ZMQ_SUB, EVENT_URI, 0, NULL);
-
-    errnum = pthread_create (&p->t, NULL, plugin_thread, p);
-    if (errnum)
-        errn_exit (errnum, "pthread_create");
 
     return p;
 }

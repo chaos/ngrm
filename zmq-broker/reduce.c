@@ -34,87 +34,117 @@ struct red_struct {
     FluxSinkFn  sinkfn;
     FluxRedFn   redfn;
     void *arg;
-    zlist_t *items;    
+    zlist_t *items;
     flux_t h;
     int flags;
-    int timeout; /* in msec */
+    int timeout_msec;
     int timer_id;
-    bool armed;
-    hwm_t hwm;
+    bool timer_armed;
+
+    int last_hwm;
+    int cur_hwm;
+    int cur_batchnum;
 };
 
 static void timer_enable (red_t r);
 static void timer_disable (red_t r);
 
-static void hwm_destroy (hwm_t h);
-static hwm_t hwm_create (void);
-static void hwm_acct (hwm_t h, int count, int batchnum);
-static bool hwm_flushable (hwm_t h);
-static bool hwm_valid (hwm_t h);
+static bool hwm_flushable (red_t r);
+static bool hwm_valid (red_t r);
 
-red_t flux_red_create (flux_t h, FluxSinkFn sinkfn, FluxRedFn redfn,
-                       int flags, void *arg)
+red_t flux_red_create (flux_t h, FluxSinkFn sinkfn, void *arg)
 {
     red_t r = xzmalloc (sizeof (*r));
-    r->sinkfn = sinkfn;
-    r->redfn = redfn;
     r->arg = arg;
-    r->flags = flags;
     r->h = h;
+    assert (sinkfn != NULL); /* FIXME */
+    r->sinkfn = sinkfn;
     if (!(r->items = zlist_new ()))
         oom ();
-    if ((r->flags & FLUX_RED_HWMFLUSH))
-        r->hwm = hwm_create ();
-
     return r;
 }
 
 void flux_red_destroy (red_t r)
 {
     flux_red_flush (r);
-    if (r->hwm)
-        hwm_destroy (r->hwm);
     zlist_destroy (&r->items);
     free (r);
+}
+
+void flux_red_set_timeout_msec (red_t r, int msec)
+{
+    r->timeout_msec = msec;
+}
+
+void flux_red_set_reduce_fn (red_t r, FluxRedFn redfn)
+{
+    r->redfn = redfn;
+}
+
+void flux_red_set_flags (red_t r, int flags)
+{
+    r->flags = flags;
 }
 
 void flux_red_flush (red_t r)
 {
     void *item;
 
-    while ((item = zlist_pop (r->items))) {
-        if (r->sinkfn)
-            r->sinkfn (r->h, item, r->arg);
-        else
-            ; /* presumably we don't own the items - otherwise mem leak! */
-    }
-    if ((r->flags & FLUX_RED_TIMEDFLUSH))
-        timer_disable (r);
+    while ((item = zlist_pop (r->items)))
+        r->sinkfn (r->h, item, r->cur_batchnum, r->arg);
+    timer_disable (r); /* no-op if not armed */
+}
+
+static int append_late_item (red_t r, void *item, int batchnum)
+{
+    zlist_t *items;
+    void *i;
+
+    if (!(items = zlist_new()))
+        oom ();
+    if (zlist_append (items, item) < 0)
+        oom ();
+    if (r->redfn)
+        r->redfn (r->h, items, batchnum, r->arg);
+    while ((i = zlist_pop (items)))
+        r->sinkfn (r->h, i, batchnum, r->arg);
+    zlist_destroy (&items);
+    return 0;
 }
 
 int flux_red_append (red_t r, void *item, int batchnum)
 {
-    int count;
+    int rc = 0;
 
+    if (batchnum < r->cur_batchnum) {
+        if (batchnum == r->cur_batchnum - 1)
+            r->last_hwm++;
+        return append_late_item (r, item, batchnum);
+    }
+    if (batchnum > r->cur_batchnum) {
+        flux_red_flush (r);
+        r->last_hwm = r->cur_hwm;
+        r->cur_hwm = 1;
+        r->cur_batchnum = batchnum;
+    } else
+        r->cur_hwm++;
+    assert (batchnum == r->cur_batchnum);
     if (zlist_append (r->items, item) < 0)
         oom ();
     if (r->redfn)
-        r->redfn (r->h, r->items, r->arg);
+        r->redfn (r->h, r->items, r->cur_batchnum, r->arg);
+
     if ((r->flags & FLUX_RED_HWMFLUSH)) {
-        hwm_acct (r->hwm, 1, batchnum);
-        if (!hwm_valid (r->hwm) || hwm_flushable (r->hwm))
+        if (!hwm_valid (r) || hwm_flushable (r))
             flux_red_flush (r);
     }
-    count = zlist_size (r->items);
-    if ((r->flags & FLUX_RED_TIMEDFLUSH) && count > 0)
-        timer_enable (r);
-
-    return count;
-}
-
-void flux_red_set_timeout_msec (red_t r, int msec)
-{
-    r->timeout = msec;
+    if ((r->flags & FLUX_RED_TIMEDFLUSH)) {
+        if (zlist_size (r->items) > 0)
+            timer_enable (r);
+    }
+    if (r->flags == 0)
+        flux_red_flush (r);
+    return rc;
 }
 
 static int timer_cb (flux_t h, void *arg)
@@ -122,66 +152,36 @@ static int timer_cb (flux_t h, void *arg)
     red_t r = arg;
     int rc = 0;
 
-    r->armed = false; /* it's a one-shot timer */
+    r->timer_armed = false; /* it's a one-shot timer */
     flux_red_flush (r);
     return rc;
 }
 
 static void timer_enable (red_t r)
 {
-    if (!r->armed) {
-        r->timer_id = flux_tmouthandler_add (r->h, r->timeout, true,
+    if (!r->timer_armed) {
+        r->timer_id = flux_tmouthandler_add (r->h, r->timeout_msec, true,
                                              timer_cb, r);
-        r->armed = true;
+        r->timer_armed = true;
     }
 }
 
 static void timer_disable (red_t r)
 {
-    if (r->armed) {
+    if (r->timer_armed) {
         flux_tmouthandler_remove (r->h, r->timer_id);
-        r->armed = false;
+        r->timer_armed = false;
     }
 }
 
-struct hwm_struct {
-    int last;
-    int cur;
-    int cur_batchnum;
-};
-
-static bool hwm_flushable (hwm_t h)
+static bool hwm_flushable (red_t r)
 {
-    return (h->last > 0 && h->last == h->cur);
+    return (r->last_hwm > 0 && r->last_hwm == r->cur_hwm);
 }
 
-static bool hwm_valid (hwm_t h)
+static bool hwm_valid (red_t r)
 {
-    return (h->last > 0);
-}
-
-static hwm_t hwm_create (void)
-{
-    hwm_t h = xzmalloc (sizeof *h);
-    return h;
-}
-
-static void hwm_destroy (hwm_t h)
-{
-    free (h);
-}
-
-static void hwm_acct (hwm_t h, int count, int batchnum)
-{
-    if (batchnum == h->cur_batchnum - 1)
-        h->last++;
-    else if (batchnum == h->cur_batchnum)
-        h->cur++;
-    else if (batchnum > h->cur_batchnum) {
-        h->last = h->cur;
-        h->cur = 1;
-        h->cur_batchnum = batchnum;
-    }
+    return (r->last_hwm > 0);
 }
 
 /*

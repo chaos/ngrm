@@ -218,7 +218,7 @@ out:
     return 0;
 }
 
-int job_main (flux_t h, zhash_t *args)
+int mod_main (flux_t h, zhash_t *args)
 {
     if (flux_msghandler_add (h, FLUX_MSGTYPE_REQUEST, "job.*",
                                             job_request_cb, NULL) < 0) {
@@ -232,9 +232,7 @@ int job_main (flux_t h, zhash_t *args)
     return 0;
 }
 
-const struct plugin_ops ops = {
-    .main = job_main,
-};
+MOD_NAME ("job");
 
 /*
  * vi: ts=4 sw=4 expandtab

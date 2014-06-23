@@ -52,7 +52,7 @@ static void _store_hosts (flux_t h)
     kvs_commit(h);
 }
 
-static int resrc_main (flux_t h, zhash_t *args)
+int mod_main (flux_t h, zhash_t *args)
 {
     _store_hosts(h);
     if (flux_reactor_start (h) < 0) {
@@ -62,9 +62,7 @@ static int resrc_main (flux_t h, zhash_t *args)
     return 0;
 }
 
-const struct plugin_ops ops = {
-    .main    = resrc_main,
-};
+MOD_NAME ("resrc");
 
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab

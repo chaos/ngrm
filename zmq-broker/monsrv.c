@@ -39,8 +39,8 @@ typedef struct {
     zhash_t *rcache;    /* hash of red_t by name */
 } ctx_t;
 
-static void mon_sink (flux_t h, void *item, void *arg);
-static void mon_reduce (flux_t h, zlist_t *items, void *arg);
+static void mon_sink (flux_t h, void *item, int batchnum, void *arg);
+static void mon_reduce (flux_t h, zlist_t *items, int batchnum, void *arg);
 
 static void freectx (ctx_t *ctx)
 {
@@ -76,13 +76,14 @@ static red_t rcache_lookup (ctx_t *ctx, const char *name)
 static red_t rcache_add (ctx_t *ctx, const char *name)
 {
     flux_t h = ctx->h;
-    red_t r;
+    red_t r = flux_red_create (h, mon_sink, ctx);
 
+    flux_red_set_reduce_fn (r, mon_reduce);
     if (ctx->master) {
-        r = flux_red_create (h, mon_sink, mon_reduce, FLUX_RED_TIMEDFLUSH, ctx);
+        flux_red_set_flags (r, FLUX_RED_TIMEDFLUSH);
         flux_red_set_timeout_msec (r, red_timeout_msec);
     } else {
-        r = flux_red_create (h, mon_sink, mon_reduce, FLUX_RED_HWMFLUSH, ctx);
+        flux_red_set_flags (r, FLUX_RED_HWMFLUSH);
     }
     zhash_insert (ctx->rcache, name, r);
     zhash_freefn (ctx->rcache, name, (zhash_free_fn *)flux_red_destroy);
@@ -202,7 +203,7 @@ static void conf_cb (const char *path, kvsdir_t dir, void *arg, int errnum)
     }
 }
 
-static void mon_sink (flux_t h, void *item, void *arg)
+static void mon_sink (flux_t h, void *item, int batchnum, void *arg)
 {
     ctx_t *ctx = arg;
     JSON o = item;
@@ -231,7 +232,7 @@ static void mon_sink (flux_t h, void *item, void *arg)
     Jput (o);
 }
 
-static void mon_reduce (flux_t h, zlist_t *items, void *arg)
+static void mon_reduce (flux_t h, zlist_t *items, int batchnum, void *arg)
 {
     zlist_t *tmp; 
     int e1, e2;
@@ -271,7 +272,7 @@ static msghandler_t htab[] = {
 };
 const int htablen = sizeof (htab) / sizeof (htab[0]);
 
-static int monsrv_main (flux_t h, zhash_t *args)
+int mod_main (flux_t h, zhash_t *args)
 {
     ctx_t *ctx = getctx (h);
 
@@ -290,9 +291,7 @@ static int monsrv_main (flux_t h, zhash_t *args)
     return 0;
 }
 
-const struct plugin_ops ops = {
-    .main    = monsrv_main,
-};
+MOD_NAME ("mon");
 
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab

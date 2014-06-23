@@ -578,7 +578,7 @@ static msghandler_t htab[] = {
 const int htablen = sizeof (htab) / sizeof (htab[0]);
 
 
-static int logsrv_main (flux_t h, zhash_t *args)
+int mod_main (flux_t h, zhash_t *args)
 {
     ctx_t *ctx = getctx (h);
 
@@ -598,9 +598,7 @@ static int logsrv_main (flux_t h, zhash_t *args)
     return 0;
 }
 
-const struct plugin_ops ops = {
-    .main    = logsrv_main,
-};
+MOD_NAME ("log");
 
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab
