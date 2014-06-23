@@ -135,6 +135,12 @@ clean:
 	@make -C zutil clean
 	@for f in $(SUBDIRS) $(SUBDIRS_POST); do make -C $$f clean; done
 
+check:
+	for f in $(SUBDIRS) $(SUBDIRS_POST); do make -C $$f check; done
+
+check-%::
+	$(MAKE) -C test $(@)
+
 # header dependencies
 OBJS = $(CMBD_OBJS) $(FLUX_OBJS) $(LIBPMI_OBJS) $(LIBCMB_OBJS)
 INCLUDES = $(wildcard *.h include/*.h)

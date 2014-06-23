@@ -3,9 +3,11 @@ LIBDIR =          $(TOP)/lib
 EXTRA_CFLAGS +=   -I$(TOP)/include -I$(TOP)/util
 EXTRA_LDFLAGS +=  -L$(TOP)/lib $(TOP)/util/libutil.a
 
+TESTRDL_INPUT_FILE := $(TOP)/conf/hype.lua
+
 LDFLAGS = -Wl,-rpath,$(LIBDIR)
 
-export CFLAGS LDFLAGS
+export CFLAGS LDFLAGS TESTRDL_INPUT_FILE
 
 LDADD_CLI = $(EXTRA_LDFLAGS) -ljson -lzmq -lczmq -lutil -lm -lpthread
 
@@ -32,6 +34,11 @@ check:
 		  exit 1; \
 		fi \
 	done
+
+check-rdl:
+	export LUA_CPATH=";;$(TOP)/dlua/?.so"; \
+        export LUA_PATH=";;$(TOP)/dlua/?.lua"; \
+	./trdl && echo PASS || echo FAIL
 
 tenc: tenc.o
 	$(CC) $(LDFLAGS) -o $@ $< $(LDADD_CLI)
