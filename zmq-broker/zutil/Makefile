@@ -1,11 +1,9 @@
 TOP = $(shell cd ../.. && pwd)
 include $(TOP)/Makefile.inc
 
-topdir :=     $(shell cd .. && pwd)
-builddir :=   $(shell pwd)
-
-CFLAGS += -I$(topdir) -I$(topdir)/include -I$(topdir)/util
-LDFLAGS += -L$(topdir)/lib -Wl,-rpath $(topdir)/lib
+CFLAGS = -Werror -Wall -g -fPIC \
+	$(CMB_CFLAGS) $(UTIL_CFLAGS)
+LDFLAGS = $(CMB_LIBS) $(UTIL_LIBS)
 
 LIBZUTIL_SOURCES := zio.c cbuf.c forkzio.c kz.c
 

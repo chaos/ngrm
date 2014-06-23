@@ -3,23 +3,18 @@ include $(TOP)/Makefile.inc
 
 ZTOP =             $(shell pwd)
 LIBDIR =          $(ZTOP)/lib
-EXTRA_CFLAGS +=   -I$(ZTOP) -I$(ZTOP)/include $(UTIL_CFLAGS) -I$(ZTOP)/zutil
-EXTRA_LDFLAGS +=  -L$(ZTOP)/lib $(ZTOP)/zutil/libzutil.a $(ZTOP)/util/libutil.a
 
 SUBDIRS :=        util wreck zutil
 SUBDIRS_POST :=   dlua test
 
-CFLAGS = -Werror -Wall -g -fPIC $(EXTRA_CFLAGS) \
+CFLAGS = -Werror -Wall -g -fPIC \
 	-I/usr/include/czmq \
 	-DPLUGIN_PATH=\"$(ZTOP)/plugins\" \
-	-DEXEC_PATH=\"$(ZTOP)/libexec\" $(LUA_CFLAGS)
-LDFLAGS = -Wl,-rpath,$(LIBDIR)
+	-DEXEC_PATH=\"$(ZTOP)/libexec\" $(LUA_CFLAGS) \
+	-I$(ZTOP) -I$(ZTOP)/include $(UTIL_CFLAGS) $(ZUTIL_CFLAGS)
+LDFLAGS = -Wl,-rpath,$(LIBDIR) -L$(ZTOP)/lib
 
-export CFLAGS LDFLAGS LUA_CFLAGS LUA_LIBS
-
-LIBUTIL = util/libutil.a
-LIBZUTIL = zutil/libzutil.a
-LDADD_CLI = $(EXTRA_LDFLAGS) -ljson -lzmq -lczmq -lutil -lm -lmunge
+LDADD_CLI = $(ZUTIL_LIBS) $(UTIL_LIBS) -ljson -lzmq -lczmq -lutil -lm -lmunge
 LDADD_SRV = -pthread -rdynamic $(LDADD_CLI) -ldl
 
 COMMON_OBJS = kvscli.o barriercli.o logcli.o cmbdcli.o mrpc.o handle.o \
@@ -47,8 +42,7 @@ SUBCMDS = libexec/kvs libexec/ping libexec/mecho \
 	libexec/rmmod libexec/lsmod libexec/insmod libexec/modprobe \
 	libexec/rdltool
 
-BUILD = $(LIBCMB) $(LIBRDL) flux echo cmbd \
-	$(PLUGINS) $(SUBCMDS)
+BUILD = $(LIBCMB) $(LIBRDL) flux echo cmbd $(PLUGINS) $(SUBCMDS)
 
 all:
 	@for f in $(SUBDIRS); do make -C $$f $@; done
@@ -65,11 +59,6 @@ plugins/%.so: wreck/%srv.c
 	mkdir -p plugins
 	$(CC) -shared $(CFLAGS) $(LDFLAGS) -o $@ $< $(UTIL_LIBS)
 
-subdirs:
-	@for f in $(SUBDIRS); do make -C $$f; done
-subdirs_post:
-	@for f in $(SUBDIRS_POST); do make -C $$f; done
-
 cmbd: $(CMBD_OBJS)
 	$(CC) -o $@ $(CMBD_OBJS) $(LDADD_SRV)
 
@@ -83,22 +72,17 @@ libexec/%: flux-%.o
 	mkdir -p $(shell dirname $@)
 	$(CC) $(LDFLAGS) -o $@ $< -L$(LIBDIR) -lcmb $(LDADD_CLI)
 
-$(LIBCMB): $(LIBCMB_OBJS) $(LIBUTIL)
+$(LIBCMB): $(LIBCMB_OBJS)
 	mkdir -p $(shell dirname $@)
 	$(CC) -shared -Wl,--version-script=cmb_version.map \
 		-o $@ $(LIBCMB_OBJS) $(LDADD_CLI)
 	ln -sf $(shell basename $@) $(@:.0=)
 
-$(LIBRDL): $(LIBRDL_OBJS) $(LIBUTIL)
+$(LIBRDL): $(LIBRDL_OBJS)
 	mkdir -p $(shell dirname $@)
 	$(CC) -shared -Wl,--version-script=rdl_version.map \
 		-o $@ $(LIBRDL_OBJS) $(LDADD_CLI) -ljson
 	ln -sf $(shell basename $@) $(@:.0=)
-
-$(LIBUTIL):
-	@make -C util
-$(LIBZUTIL):
-	@make -C zutil
 
 echo: echo.o
 	$(CC) $(LDFLAGS) -o $@ $< -L$(LIBDIR) -lcmb $(LDADD_CLI)
