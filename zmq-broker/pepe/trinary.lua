@@ -33,7 +33,7 @@ if pepe.rank == 0 then
 		.. " rank:right-uri=" .. right_uri
                 .. " kvs:conf.event.mcast-uri='" .. eventuri .. "'"
                 .. " kvs:conf.event.mcast-all-publish=false"
-		.. " kvs:conf.hb.period-sec=1.5"
+		.. " kvs:conf.hb.heartrate=1.5"
 		.. " kvs:conf.log.reduction-timeout-msec=100"
 		.. " kvs:conf.log.circular-buffer-entries=100000"
 		.. " kvs:conf.log.persist-level=debug")

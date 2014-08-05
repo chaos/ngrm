@@ -12,7 +12,7 @@ ${CMDPREFIX} ${CMBD:-./cmbd} \
   --logdest=cmbd.log \
   --hostlist=localhost,localhost,localhost \
   --plugins=modctl,api,barrier,live,kvs,log,hb,job,rexec,event,rank \
-  kvs:conf.hb.period-sec=1.5 \
+  kvs:conf.hb.heartrate=1.5 \
   kvs:conf.log.reduction-timeout-msec=100 \
   kvs:conf.log.circular-buffer-entries=100000 \
   kvs:conf.log.persist-level=debug \

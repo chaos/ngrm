@@ -24,11 +24,11 @@
 #include "log.h"
 #include "plugin.h"
 
-#define MAX_SYNC_PERIOD_SEC 30*60.0
+#define MAX_HEARTRATE   30*60.0
 
 static int epoch = 0;
-static int id = -1;
-static bool armed = false;
+static int timer_id = -1;
+static double heartrate = 1.0; /* seconds */
 
 static int timeout_cb (flux_t h, void *arg)
 {
@@ -45,46 +45,40 @@ done:
     return rc;
 }
 
-static void set_config (const char *path, kvsdir_t dir, void *arg, int errnum)
+static void set_heartrate (const char *key, double val, void *arg, int errnum)
 {
     flux_t h = arg;
-    double val;
-    char *key = NULL;
 
-    if (errnum > 0) {
-        flux_log (h, LOG_ERR, "%s: %s", key, strerror (errnum));
-        goto done;
-    }
-    key = kvsdir_key_at (dir, "period-sec");
-    if (kvs_get_double (h, key, &val) < 0) {
-        flux_log (h, LOG_ERR, "%s: %s", key, strerror (errno));
-        goto done;
-    }
-    if (val == NAN || val <= 0 || val > MAX_SYNC_PERIOD_SEC) {
+    if (errnum != 0)
+        return;
+    if (val == NAN || val <= 0 || val > MAX_HEARTRATE) {
         flux_log (h, LOG_ERR, "%s: %.1f out of range (0 < sec < %.1f", key,
-                  val, MAX_SYNC_PERIOD_SEC);
-        goto done;
+                  val, MAX_HEARTRATE);
+        return;
     }
-    if (armed) {
-        flux_tmouthandler_remove (h, id);
-        armed = false;
+    if (val != heartrate) {
+        heartrate = val;
+        flux_tmouthandler_remove (h, timer_id);
+        timer_id = flux_tmouthandler_add (h, (int)(heartrate * 1000),
+                                          false, timeout_cb, NULL);
+        if (timer_id < 0) {
+            flux_log (h, LOG_ERR, "flux_tmouthandler_add: %s", strerror (errno));
+            return;
+        }
+        flux_log (h, LOG_INFO, "heartrate set to %.1fs", heartrate);
     }
-    id = flux_tmouthandler_add (h, (int)(val * 1000), false, timeout_cb, NULL);
-    if (id < 0) {
-        flux_log (h, LOG_ERR, "flux_tmouthandler_add: %s", strerror (errno));
-        goto done;
-    }
-    armed = true;
-    flux_log (h, LOG_INFO, "heartbeat period set to %.1fs", val);
-done:
-    if (key)
-        free (key);
 }
 
 int mod_main (flux_t h, zhash_t *args)
 {
-    if (kvs_watch_dir (h, set_config, h, "conf.hb") < 0) {
+    if (kvs_watch_double (h, "conf.hb.heartrate", set_heartrate, h) < 0) {
         flux_log (h, LOG_ERR, "kvs_watch_dir conf.hb: %s", strerror (errno));
+        return -1;
+    }
+    timer_id = flux_tmouthandler_add (h, (int)(heartrate * 1000),
+                                      false, timeout_cb, NULL);
+    if (timer_id < 0) {
+        flux_log (h, LOG_ERR, "flux_tmouthandler_add: %s", strerror (errno));
         return -1;
     }
     if (flux_reactor_start (h) < 0) {
