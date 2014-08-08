@@ -191,7 +191,7 @@ static void usage (void)
 "Usage: cmbd OPTIONS [module:key=val ...]\n"
 " -t,--child-uri URI           Set child URI to bind and receive requests\n"
 " -p,--parent-uri URI          Set parent URI to connect and send requests\n"
-" -e,--event-uri               Set event URI\n"
+" -e,--event-uri               Set event URI (pub: rank 0, sub: rank > 0)\n"
 " -v,--verbose                 Be chatty\n"
 " -H,--hostlist HOSTLIST       Set session hostlist (sets 'hosts' in the KVS)\n"
 " -R,--rank N                  Set cmbd rank (0...size-1)\n"
@@ -669,9 +669,11 @@ static int cmbd_init_gevent_pub (ctx_t *ctx, endpt_t *ep)
 {
     if (!(ep->zs = zsocket_new (ctx->zctx, ZMQ_PUB)))
         err_exit ("zsocket_new");
+    if (flux_sec_ssockinit (ctx->sec, ep->zs) < 0) /* no-op for epgm */
+        msg_exit ("flux_sec_ssockinit: %s", flux_sec_errstr (ctx->sec));
     zsocket_set_sndhwm (ep->zs, 0);
-    if (zsocket_bind (ep->zs, "%s", ep->uri) < 0)
-        err_exit ("%s", ep->uri);
+    if (zsocket_bind (ep->zs, "%s", ep->uri) < 0) /* fails on ipc:// */
+        err_exit ("%s: %s", __FUNCTION__, ep->uri);
     if (strchr (ep->uri, '*')) { /* capture dynamically assigned port */
         free (ep->uri);
         ep->uri = zsocket_last_endpoint (ep->zs);
@@ -686,7 +688,8 @@ static int cmbd_init_gevent_sub (ctx_t *ctx, endpt_t *ep)
 
     if (!(ep->zs = zsocket_new (ctx->zctx, ZMQ_SUB)))
         err_exit ("zsocket_new");
-    /* FIXME: security for non-epgm sock */
+    if (flux_sec_csockinit (ctx->sec, ep->zs) < 0) /* no-op for epgm */
+        msg_exit ("flux_sec_csockinit: %s", flux_sec_errstr (ctx->sec));
     zsocket_set_rcvhwm (ep->zs, 0);
     if (zsocket_connect (ep->zs, "%s", ep->uri) < 0)
         err_exit ("%s", ep->uri);
@@ -1137,16 +1140,18 @@ static int pub_gevent (ctx_t *ctx, zmsg_t **zmsg)
         flux_respond_errnum (ctx->h, zmsg, EINVAL);
         goto done;
     }
-    /* Publish event to epgm (if configured)
+    /* Publish event globally (if configured)
     */
     if (ctx->gevent) {
         if (!(cpy = zmsg_dup (event)))
             oom ();
-        if (flux_sec_munge_zmsg (ctx->sec, &cpy) < 0) {
-            flux_respond_errnum (ctx->h, zmsg, errno);
-            flux_log (ctx->h, LOG_ERR, "%s: discarding message: %s",
-                      __FUNCTION__, flux_sec_errstr (ctx->sec));
-            goto done;
+        if (strstr (ctx->gevent->uri, "pgm://")) {
+            if (flux_sec_munge_zmsg (ctx->sec, &cpy) < 0) {
+                flux_respond_errnum (ctx->h, zmsg, errno);
+                flux_log (ctx->h, LOG_ERR, "%s: discarding message: %s",
+                          __FUNCTION__, flux_sec_errstr (ctx->sec));
+                goto done;
+            }
         }
         if (zmsg_send (&cpy, ctx->gevent->zs) < 0) {
             flux_respond_errnum (ctx->h, zmsg, errno ? errno : EIO);
@@ -1378,9 +1383,11 @@ static int event_cb (zloop_t *zl, zmq_pollitem_t *item, ctx_t *ctx)
 {
     zmsg_t *zmsg = zmsg_recv (item->socket);
     if (zmsg) {
-        if (flux_sec_unmunge_zmsg (ctx->sec, &zmsg) < 0) {
-            zmsg_destroy (&zmsg);
-            goto done;
+        if (strstr (ctx->gevent->uri, "pgm://")) {
+            if (flux_sec_unmunge_zmsg (ctx->sec, &zmsg) < 0) {
+                zmsg_destroy (&zmsg);
+                goto done;
+            }
         }
         snoop_cc (ctx, FLUX_MSGTYPE_EVENT, zmsg);
         cmb_internal_event (ctx, zmsg);

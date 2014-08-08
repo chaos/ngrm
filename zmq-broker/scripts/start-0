@@ -8,10 +8,11 @@ size=3
 ${CMDPREFIX} ${CMBD:-./cmbd} \
   --verbose \
   --child-uri=$(rank2uri $rank) \
+  --event-uri="ipc:///tmp/screen3_event" \
   --rank=$rank --size=$size \
   --logdest=cmbd.log \
   --hostlist=localhost,localhost,localhost \
-  --plugins=modctl,api,barrier,live,kvs,log,hb,job,rexec,event,rank \
+  --plugins=modctl,api,barrier,live,kvs,log,hb,job,rexec,rank \
   kvs:conf.hb.heartrate=1.5 \
   kvs:conf.log.reduction-timeout-msec=100 \
   kvs:conf.log.circular-buffer-entries=100000 \
