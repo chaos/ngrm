@@ -18,7 +18,7 @@ end
 local h = hostlist.new (pepe.nodelist)
 local mport = 5000 + tonumber (pepe:getenv ("SLURM_JOB_ID")) % 1024;
 local eventuri = "epgm://eth0;239.192.1.1:" .. tostring (mport)
-local plugins = "modctl,event,api,barrier,live,log,kvs,job,rexec,resrc,rank"
+local plugins = "modctl,api,barrier,live,log,kvs,job,rexec,resrc,rank"
 
 local right_rank = (pepe.rank + 1) % pepe.nprocs
 local right_uri = "tcp://" ..  h[right_rank + 1] .. ":5556"
@@ -26,13 +26,12 @@ local right_uri = "tcp://" ..  h[right_rank + 1] .. ":5556"
 if pepe.rank == 0 then
     pepe.run ("./cmbd --plugins=hb,sched," .. plugins
                 .. " --child-uri='tcp://*:5556'"
+                .. " --event-uri='" .. eventuri .. "'"
 		.. " --rank=" .. pepe.rank
 		.. " --size=" .. pepe.nprocs
 		.. " --hostlist=" .. pepe.nodelist
 		.. " --logdest=cmbd.log"
 		.. " rank:right-uri=" .. right_uri
-                .. " kvs:conf.event.mcast-uri='" .. eventuri .. "'"
-                .. " kvs:conf.event.mcast-all-publish=false"
 		.. " kvs:conf.hb.heartrate=1.5"
 		.. " kvs:conf.log.reduction-timeout-msec=100"
 		.. " kvs:conf.log.circular-buffer-entries=100000"
@@ -43,6 +42,7 @@ else
     pepe.run ("./cmbd --plugins=" .. plugins
                 .. " --child-uri='tcp://*:5556'"
 		.. " --parent-uri='" .. parent_uri .. "'"
+                .. " --event-uri='" .. eventuri .. "'"
 		.. " --rank=" .. pepe.rank
 		.. " --size=" .. pepe.nprocs
 		.. " rank:right-uri=" .. right_uri)
