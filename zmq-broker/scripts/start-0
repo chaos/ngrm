@@ -9,6 +9,7 @@ ${CMDPREFIX} ${CMBD:-./cmbd} \
   --verbose \
   --child-uri=$(rank2uri $rank) \
   --event-uri="ipc:///tmp/screen3_event" \
+  --right-uri=$(rank2uri $(($rank+1))) \
   --rank=$rank --size=$size \
   --logdest=cmbd.log \
   --hostlist=localhost,localhost,localhost \
@@ -16,5 +17,4 @@ ${CMDPREFIX} ${CMBD:-./cmbd} \
   kvs:conf.hb.heartrate=1.5 \
   kvs:conf.log.reduction-timeout-msec=100 \
   kvs:conf.log.circular-buffer-entries=100000 \
-  kvs:conf.log.persist-level=debug \
-  rank:right-uri=$(rank2uri $(($rank+1)))
+  kvs:conf.log.persist-level=debug

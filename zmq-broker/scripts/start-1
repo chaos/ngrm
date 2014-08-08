@@ -9,8 +9,8 @@ ${CMDPREFIX} ${CMBD:-./cmbd} \
   --verbose \
   --child-uri=$(rank2uri $rank) \
   --parent-uri=$(rank2uri $(($rank-1))) \
+  --right-uri=$(rank2uri $(($rank+1))) \
   --event-uri="ipc:///tmp/screen3_event" \
   --rank=$rank --size=$size \
   --plugins=modctl,api,barrier,live,log,kvs,job,rexec,rank \
-  api:sockpath=/tmp/rank.$rank \
-  rank:right-uri=$(rank2uri $(($rank+1)))
+  api:sockpath=/tmp/rank.$rank
