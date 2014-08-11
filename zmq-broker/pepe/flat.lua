@@ -30,7 +30,6 @@ if pepe.rank == 0 then
 		.. " --right-uri=" .. right_uri
 		.. " --rank=" .. pepe.rank
 		.. " --size=" .. pepe.nprocs
-		.. " --hostlist=" .. pepe.nodelist
 		.. " --logdest=cmbd.log"
 		.. " kvs:conf.hb.heartrate=1.5"
 		.. " kvs:conf.log.reduction-timeout-msec=100"

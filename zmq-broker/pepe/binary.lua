@@ -30,7 +30,6 @@ if pepe.rank == 0 then
 		.. " --right-uri=" .. right_uri
 		.. " --rank=" .. pepe.rank 
 		.. " --size=" .. pepe.nprocs
-		.. " --hostlist=" .. pepe.nodelist
 		.. " --logdest=cmbd.log"
 		.. " sched:rdl-conf=conf/hype.lua"
 		.. " kvs:conf.hb.heartrate=1.5"

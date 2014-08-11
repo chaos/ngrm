@@ -12,7 +12,6 @@ ${CMDPREFIX} ${CMBD:-./cmbd} \
   --right-uri=$(rank2uri $(($rank+1))) \
   --rank=$rank --size=$size \
   --logdest=cmbd.log \
-  --hostlist=localhost,localhost,localhost \
   --plugins=modctl,api,barrier,live,kvs,log,hb,job,rexec \
   kvs:conf.hb.heartrate=1.5 \
   kvs:conf.log.reduction-timeout-msec=100 \
