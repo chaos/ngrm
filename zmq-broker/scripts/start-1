@@ -12,5 +12,5 @@ ${CMDPREFIX} ${CMBD:-./cmbd} \
   --right-uri=$(rank2uri $(($rank+1))) \
   --event-uri="ipc:///tmp/screen3_event" \
   --rank=$rank --size=$size \
-  --plugins=modctl,api,barrier,live,log,kvs,job,rexec,rank \
+  --plugins=modctl,api,barrier,live,log,kvs,job,rexec \
   api:sockpath=/tmp/rank.$rank
