@@ -10,7 +10,7 @@ ${CMDPREFIX} ${CMBD:-./cmbd} \
   --child-uri=$(rank2uri $rank) \
   --event-uri="ipc:///tmp/screen3_event" \
   --right-uri=$(rank2uri $(($rank+1))) \
-  --rank=$rank --size=$size \
+  --rank=$rank --size=$size --sid=screen \
   --logdest=cmbd.log \
   --plugins=modctl,api,barrier,live,kvs,log,hb,job,rexec \
   kvs:conf.hb.heartrate=1.5 \

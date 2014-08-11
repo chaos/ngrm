@@ -24,7 +24,6 @@
 #include "plugin.h"
 #include "util.h"
 #include "log.h"
-#include "cmb_socket.h"
 
 #define LISTEN_BACKLOG      5
 
@@ -421,7 +420,10 @@ int mod_main (flux_t h, zhash_t *args)
     int rc = -1;
 
     if (!args || !(sockpath = zhash_lookup (args, "sockpath"))) {
-        if (asprintf (&dfltpath, CMB_API_PATH_TMPL, geteuid ()) < 0)
+        const char *tmpdir = getenv ("TMPDIR");
+        if (!tmpdir)
+            tmpdir = "/tmp";
+        if (asprintf (&dfltpath, "%s/flux-api", tmpdir) < 0)
             oom ();
         sockpath = dfltpath;
     }

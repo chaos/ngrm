@@ -16,13 +16,15 @@ BUILD = tenc tkvswatch tcommit tasyncsock tmunge trdl
 all: $(BUILD)
 
 # for screen3
+check:
+	export TMPDIR=/var/tmp/flux-screen-0; make checkone
 check1:
-	export FLUX_API_PATH=/tmp/rank.1; make check
+	export TMPDIR=/var/tmp/flux-screen-1; make checkone
 check2:
-	export FLUX_API_PATH=/tmp/rank.2; make check
+	export TMPDIR=/var/tmp/flux-screen-2; make checkone
 check3: check check1 check2
 
-check:
+checkone:
 	@export LUA_CPATH=";;$(TOP)/dlua/?.so"; \
 	export LUA_PATH=";;$(TOP)/dlua/?.lua"; \
 	for tst in $${TESTS:-t[0-9][0-9]}; do \
