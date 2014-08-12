@@ -430,16 +430,11 @@ static void update_proctitle (ctx_t *ctx)
 
 static void update_environment (ctx_t *ctx)
 {
+    const char *oldtmp = getenv ("TMPDIR");
     static char tmpdir[PATH_MAX + 1];
 
-    if (setenv ("FLUX_COMMS_RANK", ctx->rankstr, 1) < 0)
-        err_exit ("setenv FLUX_COMMS_RANK");
-
-    if (setenv ("FLUX_COMMS_SID", ctx->sid, 1) < 0)
-        err_exit ("setenv FLUX_COMMS_SID");
-
-    (void)snprintf (tmpdir, sizeof (tmpdir), "/var/tmp/flux-%s-%d",
-                    ctx->sid, ctx->rank);
+    (void)snprintf (tmpdir, sizeof (tmpdir), "%s/flux-%s-%d",
+                    oldtmp ? oldtmp : "/tmp", ctx->sid, ctx->rank);
     if (mkdir (tmpdir, 0700) < 0 && errno != EEXIST)
         err_exit ("mkdir %s", tmpdir);
     if (setenv ("TMPDIR", tmpdir, 1) < 0)

@@ -364,9 +364,7 @@ flux_t cmb_init (void)
         snprintf (path, sizeof (path), "%s", val);
     } else {
         val = getenv ("TMPDIR");
-        if (!val)
-            val = "/tmp";
-        snprintf (path, sizeof (path), "%s/flux-api", val);
+        snprintf (path, sizeof (path), "%s/flux-api", val ? val : "/tmp");
     }
 
     if ((val = getenv ("FLUX_TRACE_APISOCK")) && !strcmp (val, "1"))

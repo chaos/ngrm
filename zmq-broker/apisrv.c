@@ -421,9 +421,7 @@ int mod_main (flux_t h, zhash_t *args)
 
     if (!args || !(sockpath = zhash_lookup (args, "sockpath"))) {
         const char *tmpdir = getenv ("TMPDIR");
-        if (!tmpdir)
-            tmpdir = "/tmp";
-        if (asprintf (&dfltpath, "%s/flux-api", tmpdir) < 0)
+        if (asprintf (&dfltpath, "%s/flux-api", tmpdir ? tmpdir : "/tmp") < 0)
             oom ();
         sockpath = dfltpath;
     }
