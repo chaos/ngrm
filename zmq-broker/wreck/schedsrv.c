@@ -16,7 +16,6 @@
 #include <libgen.h>
 #include <czmq.h>
 #include <json/json.h>
-#include <dlfcn.h>
 
 #include "util.h"
 #include "log.h"
@@ -50,7 +49,7 @@ static zlist_t *ev_queue = NULL;
 static flux_t h = NULL;
 static struct rdl *rdl = NULL;
 static char* resource = NULL;
-static const char* IDLETAG = "idle";
+static char* IDLETAG = "idle";
 static const char* CORETYPE = "core";
 
 static struct stab_struct jobstate_tab[] = {
@@ -88,7 +87,6 @@ static void setup_rdl_lua (void)
     char *s;
     char  exe_path [MAXPATHLEN];
     char *exe_dir;
-    char *rdllib;
 
     memset (exe_path, 0, MAXPATHLEN);
     if (readlink ("/proc/self/exe", exe_path, MAXPATHLEN - 1) < 0)
@@ -102,13 +100,6 @@ static void setup_rdl_lua (void)
 
     flux_log (h, LOG_DEBUG, "LUA_PATH %s", getenv ("LUA_PATH"));
     flux_log (h, LOG_DEBUG, "LUA_CPATH %s", getenv ("LUA_CPATH"));
-
-    asprintf (&rdllib, "%s/lib/librdl.so", exe_dir);
-    if (!dlopen (rdllib, RTLD_NOW | RTLD_GLOBAL)) {
-        flux_log (h, LOG_ERR, "dlopen %s failed", rdllib);
-        return;
-    }
-    free(rdllib);
 
     rdllib_set_default_errf (h, (rdl_err_f)(&f_err));
 }
@@ -298,6 +289,8 @@ extract_lwjid (const char *k, int64_t *i)
     *i = strtoul(id, (char **) NULL, 10);
 
 ret:
+    free (kcopy);
+
     return rc;
 }
 
@@ -320,6 +313,7 @@ extract_lwjinfo (flux_lwj_t *j)
         j->state = stab_lookup (jobstate_tab, state);
         flux_log (h, LOG_DEBUG, "extract_lwjinfo got %s: %s", key, state);
         free(key);
+        free(state);
     }
 
     if (asprintf (&key, "lwj.%ld.nnodes", j->lwj_id) < 0) {
@@ -562,6 +556,8 @@ update_job_resources (flux_lwj_t *job)
 
     if (jr)
         rc = update_job_cores (jr, job, &node, &cores);
+    else
+        flux_log (h, LOG_ERR, "update_job_resources passed a null resource");
 
     if (rc == 0) {
         rc = -1;
@@ -579,6 +575,8 @@ update_job_resources (flux_lwj_t *job)
             rc = 0;
         }
     }
+    free (key);
+    free (rdlstr);
 
     return rc;
 }
@@ -614,9 +612,10 @@ update_job (flux_lwj_t *job)
  */
 int schedule_job (struct rdl *rdl, const char *uri, flux_lwj_t *job)
 {
-    int64_t nodes;
+    int64_t cores;
     int rc = -1;
     json_object *args = util_json_object_new_object ();
+    json_object *tags = util_json_object_new_object ();
     json_object *o;
     struct rdl_accumulator *a = NULL;
     struct resource *fr = NULL;         /* found resource */
@@ -627,33 +626,39 @@ int schedule_job (struct rdl *rdl, const char *uri, flux_lwj_t *job)
         goto ret;
     }
 
-    util_json_object_add_string (args, "tag", IDLETAG);
+    util_json_object_add_string (args, "type", "core");
+    util_json_object_add_boolean (tags, IDLETAG, true);
+    json_object_object_add (args, "tags", tags);
     frdl = rdl_find (rdl, args);
 
     if (frdl) {
         if ((fr = rdl_resource_get (frdl, uri)) == NULL) {
-            flux_log (h, LOG_ERR, "failed to get found resources: %s", uri);
+            flux_log (h, LOG_ERR, "failed to find %s resources for job %ld", uri,
+                      job->lwj_id);
             goto ret;
         }
 
         o = rdl_resource_aggregate_json (fr);
         if (o) {
-            rc = util_json_object_get_int64 (o, "node", &nodes);
+            rc = util_json_object_get_int64 (o, "core", &cores);
             if (rc) {
-                flux_log (h, LOG_ERR, "schedule_job failed to get nodes: %d",
+                flux_log (h, LOG_ERR, "schedule_job failed to get cores: %d",
                           rc);
                 goto ret;
             } else {
-                flux_log (h, LOG_DEBUG, "schedule_job found %ld nodes", nodes);
+                flux_log (h, LOG_DEBUG, "schedule_job found %ld cores", cores);
             }
             json_object_put (o);
         }
 
-        if (nodes >= job->req.nnodes) {
+        if (cores >= job->req.ncores) {
             rdl_resource_iterator_reset (fr);
             a = rdl_accumulator_create (rdl);
             if (allocate_resources (fr, a, job)) {
                 job->rdl = rdl_accumulator_copy (a);
+                /* Transition the job back to submitted to prevent the
+                 * scheduler from trying to schedule it again */
+                job->state = j_submitted;
                 rc = update_job (job);
             }
         }
@@ -670,7 +675,9 @@ int schedule_jobs (struct rdl *rdl, const char *uri, zlist_t *jobs)
 
     job = zlist_first (jobs);
     while (!rc && job) {
-        rc = schedule_job(rdl, uri, job);
+        if (job->state == j_unsched) {
+            rc = schedule_job(rdl, uri, job);
+        }
         job = zlist_next (jobs);
     }
 
@@ -841,8 +848,11 @@ action_j_event (flux_event_t *e)
                       "job %ld read state mismatch ", e->lwj->lwj_id);
             goto bad_transition;
         }
-        flux_log (h, LOG_DEBUG, "setting %ld to submitted state",
+        /* Transition the job temporarily to unscheduled to flag it as
+         * a candidate to be scheduled */
+        flux_log (h, LOG_DEBUG, "setting %ld to unscheduled state",
                   e->lwj->lwj_id);
+        e->lwj->state = j_unsched;
         schedule_jobs (rdl, resource, p_queue);
         break;
 
