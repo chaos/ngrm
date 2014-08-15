@@ -25,7 +25,7 @@ check1:
 check2:
 	@echo Checking rank 2
 	@export TMPDIR=$${TMPDIR:-/tmp}/flux-screen-2; make check
-check3: check1 check1 check2
+check3: check0 check1 check2
 
 check:
 	@export LUA_CPATH=";;$(TOP)/dlua/?.so"; \
