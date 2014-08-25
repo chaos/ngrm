@@ -12,10 +12,9 @@
 #include "hostlist.h"
 #include "shortjson.h"
 
-#define OPTIONS "hHcnud"
+#define OPTIONS "hcnud"
 static const struct option longopts[] = {
     {"help",       no_argument,        0, 'h'},
-    {"hostname",   no_argument,        0, 'H'},
     {"comma",      no_argument,        0, 'c'},
     {"newline",    no_argument,        0, 'n'},
     {"up",         no_argument,        0, 'u'},
@@ -28,7 +27,6 @@ void usage (void)
     fprintf (stderr, 
 "Usage: flux-up [OPTIONS]\n"
 "where options are:\n"
-"  -H,--hostname    print hostnames instead of ranks\n"
 "  -c,--comma       print commas instead of ranges\n"
 "  -n,--newline     print newlines instead of ranges\n"
 "  -u,--up          print only nodes in ok or slow state\n"
@@ -51,11 +49,9 @@ typedef struct {
     hostlist_t unknown;
 } ns_t;
 
-static char *rank2host (JSON hosts, const char *rankstr);
 static char *hostlist_tostring (hostlist_t hl, hlstr_type_t type);
 
 static ns_t *ns_fromkvs (flux_t h);
-static void ns_tohost (ns_t *ns, JSON hosts);
 static void ns_print (ns_t *ns, hlstr_type_t fmt);
 static void ns_destroy (ns_t *ns);
 static void ns_print_down (ns_t *ns, hlstr_type_t fmt);
@@ -65,7 +61,6 @@ int main (int argc, char *argv[])
 {
     flux_t h;
     int ch;
-    bool Hopt = false;
     bool uopt = false;
     bool dopt = false;
     hlstr_type_t fmt = HLSTR_RANGED;
@@ -75,9 +70,6 @@ int main (int argc, char *argv[])
 
     while ((ch = getopt_long (argc, argv, OPTIONS, longopts, NULL)) != -1) {
         switch (ch) {
-            case 'H': /* --hostname */
-                Hopt = true;
-                break;
             case 'c': /* --comma */
                 fmt = HLSTR_COMMA;
                 break;
@@ -103,13 +95,6 @@ int main (int argc, char *argv[])
 
     if (!(ns = ns_fromkvs (h)))
         err_exit ("conf.live.status");
-    if (Hopt) {
-        JSON hosts;
-        if (kvs_get (h, "hosts", &hosts) < 0)
-            err_exit ("kvs_get hosts");
-        ns_tohost (ns, hosts);
-        Jput (hosts);
-    }
     if (dopt)
         ns_print_down (ns, fmt);
     else if (uopt)
@@ -164,19 +149,6 @@ static char *hostlist_tostring (hostlist_t hl, hlstr_type_t type)
     return buf;
 }
 
-static char *rank2host (JSON hosts, const char *rankstr)
-{
-    JSON o;
-    const char *name;
-    int rank = strtoul (rankstr, NULL, 10);
-
-    if (!Jget_ar_obj (hosts, rank, &o))
-        msg_exit ("%s: rank %d not found in hosts", __FUNCTION__, rank);
-    if (!Jget_str (o, "name", &name))
-        msg_exit ("%s: rank %d malformed hosts entry", __FUNCTION__, rank);
-    return xstrdup (name);
-}
-
 static bool Jget_hl (JSON o, const char *name, hostlist_t *hp)
 {
     hostlist_t hl;
@@ -220,32 +192,6 @@ static void ns_destroy (ns_t *ns)
     hostlist_destroy (ns->unknown);
     hostlist_destroy (ns->fail);
     free (ns);
-}
-
-static hostlist_t nl_tohost (hostlist_t hl, JSON hosts)
-{
-    hostlist_t nhl = hostlist_create ("");
-    hostlist_iterator_t itr;
-    char *s;
-
-    if (!(itr = hostlist_iterator_create (hl)))
-        oom ();
-    while ((s = hostlist_next (itr))) {
-        char *h = rank2host (hosts, s);
-        hostlist_push_host (nhl, h);
-        free (h);
-    }
-    hostlist_iterator_destroy (itr);
-    hostlist_destroy (hl);
-    return nhl;
-}
-
-static void ns_tohost (ns_t *ns, JSON hosts)
-{
-    ns->ok = nl_tohost (ns->ok, hosts);
-    ns->slow = nl_tohost (ns->slow, hosts);
-    ns->fail = nl_tohost (ns->fail, hosts);
-    ns->unknown = nl_tohost (ns->unknown, hosts);
 }
 
 static void nl_print (hostlist_t hl, const char *label, hlstr_type_t fmt)
