@@ -38,7 +38,7 @@
 #endif
 
 #define ZLOOP_RETURN(p) \
-    return ((ctx)->reactor_stop ? (-1) : (0))
+    return ((p)->reactor_stop ? (-1) : (0))
 
 typedef struct {
     void *zs;
@@ -367,8 +367,6 @@ int main (int argc, char *argv[])
                 usage ();
         }
     }
-    msg ("Heartrate: %0.1fs", ctx.heartrate);
-
     /* Create zeromq context, security context, zloop, etc.
      */
     cmbd_init_comms (&ctx);
@@ -446,6 +444,8 @@ int main (int argc, char *argv[])
                                          (zloop_timer_fn *)hb_cb, &ctx);
         if (ctx.heartbeat_tid == -1)
             err_exit ("zloop_timer");
+
+        msg ("Heartrate: %0.1fs", ctx.heartrate);
     }
 
     zloop_start (ctx.zl);
