@@ -445,7 +445,7 @@ int main (int argc, char *argv[])
         if (ctx.heartbeat_tid == -1)
             err_exit ("zloop_timer");
 
-        msg ("Heartrate: %0.1fs", ctx.heartrate);
+        msg ("Heartrate: T=%0.1fs", ctx.heartrate);
     }
 
     zloop_start (ctx.zl);
