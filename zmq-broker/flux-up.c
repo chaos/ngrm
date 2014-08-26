@@ -9,7 +9,7 @@
 #include "cmb.h"
 #include "util.h"
 #include "log.h"
-#include "hostlist.h"
+#include "nodeset.h"
 #include "shortjson.h"
 
 #define OPTIONS "hcnud"
@@ -37,25 +37,24 @@ void usage (void)
 
 #define CHUNK_SIZE 80
 typedef enum {
-    HLSTR_COMMA,
-    HLSTR_NEWLINE,
-    HLSTR_RANGED,
-} hlstr_type_t;
+    FMT_COMMA,
+    FMT_NEWLINE,
+    FMT_RANGED,
+} fmt_t;
 
 typedef struct {
-    hostlist_t ok;
-    hostlist_t fail;
-    hostlist_t slow;
-    hostlist_t unknown;
+    nodeset_t ok;
+    nodeset_t fail;
+    nodeset_t slow;
+    nodeset_t unknown;
 } ns_t;
 
-static char *hostlist_tostring (hostlist_t hl, hlstr_type_t type);
-
+static ns_t *ns_guess (flux_t h);
 static ns_t *ns_fromkvs (flux_t h);
-static void ns_print (ns_t *ns, hlstr_type_t fmt);
 static void ns_destroy (ns_t *ns);
-static void ns_print_down (ns_t *ns, hlstr_type_t fmt);
-static void ns_print_up (ns_t *ns, hlstr_type_t fmt);
+static void ns_print_down (ns_t *ns, fmt_t fmt);
+static void ns_print_up (ns_t *ns, fmt_t fmt);
+static void ns_print_all (ns_t *ns, fmt_t fmt);
 
 int main (int argc, char *argv[])
 {
@@ -63,7 +62,7 @@ int main (int argc, char *argv[])
     int ch;
     bool uopt = false;
     bool dopt = false;
-    hlstr_type_t fmt = HLSTR_RANGED;
+    fmt_t fmt = FMT_RANGED;
     ns_t *ns;
 
     log_init ("flux-up");
@@ -71,10 +70,10 @@ int main (int argc, char *argv[])
     while ((ch = getopt_long (argc, argv, OPTIONS, longopts, NULL)) != -1) {
         switch (ch) {
             case 'c': /* --comma */
-                fmt = HLSTR_COMMA;
+                fmt = FMT_COMMA;
                 break;
             case 'n': /* --newline */
-                fmt = HLSTR_NEWLINE;
+                fmt = FMT_NEWLINE;
                 break;
             case 'u': /* --up */
                 uopt = true;
@@ -94,13 +93,13 @@ int main (int argc, char *argv[])
         err_exit ("cmb_init");
 
     if (!(ns = ns_fromkvs (h)))
-        err_exit ("conf.live.status");
+        ns = ns_guess (h);
     if (dopt)
         ns_print_down (ns, fmt);
     else if (uopt)
         ns_print_up (ns, fmt);
     else
-        ns_print (ns, fmt);
+        ns_print_all (ns, fmt);
     ns_destroy (ns);
 
     flux_handle_destroy (&h);
@@ -108,55 +107,14 @@ int main (int argc, char *argv[])
     return 0;
 }
 
-static char *hostlist_tostring (hostlist_t hl, hlstr_type_t type)
+static bool Jget_nodeset (JSON o, const char *name, nodeset_t *np)
 {
-    int len = CHUNK_SIZE;
-    char *buf = xzmalloc (len);
-
-    hostlist_sort (hl);
-    hostlist_uniq (hl);
-
-    switch (type) {
-        case HLSTR_COMMA:
-            while (hostlist_deranged_string (hl, len, buf) < 0)
-                if (!(buf = realloc (buf, len += CHUNK_SIZE)))
-                    oom ();
-            break;
-        case HLSTR_RANGED:
-            while (hostlist_ranged_string (hl, len, buf) < 0)
-                if (!(buf = realloc (buf, len += CHUNK_SIZE)))
-                    oom ();
-            break;
-        case HLSTR_NEWLINE: {
-            hostlist_iterator_t itr;
-            char *host;
-
-            if (!(itr = hostlist_iterator_create (hl)))
-                oom ();
-            while ((host = hostlist_next (itr))) {
-                while (len - strlen (buf) < strlen (host) + 2) {
-                    if (!(buf = realloc (buf, len += CHUNK_SIZE)))
-                        oom ();
-                }
-                snprintf (buf + strlen (buf), len - strlen (buf), "%s\n", host);
-            }
-            hostlist_iterator_destroy (itr);
-            break;
-        }
-    }
-    if (buf[strlen (buf) - 1] == '\n')
-        buf[strlen (buf) - 1] = '\0';
-    return buf;
-}
-
-static bool Jget_hl (JSON o, const char *name, hostlist_t *hp)
-{
-    hostlist_t hl;
+    nodeset_t ns;
     const char *s;
 
-    if (!Jget_str (o, name, &s) || !(hl = hostlist_create (s)))
+    if (!Jget_str (o, name, &s) || !(ns = nodeset_new_str (s)))
         return false;
-    *hp = hl;
+    *np = ns;
     return true;
 }
 
@@ -164,8 +122,10 @@ static ns_t *ns_fromjson (JSON o)
 {
     ns_t *ns = xzmalloc (sizeof (*ns));
 
-    if (!Jget_hl (o, "ok", &ns->ok) || !Jget_hl (o, "unknown", &ns->unknown)
-     || !Jget_hl (o, "slow", &ns->slow) || !Jget_hl (o, "fail", &ns->fail)) {
+    if (!Jget_nodeset (o, "ok", &ns->ok)
+                || !Jget_nodeset (o, "unknown", &ns->unknown)
+                || !Jget_nodeset (o, "slow", &ns->slow)
+                || !Jget_nodeset (o, "fail", &ns->fail)) {
         ns_destroy (ns);
         return NULL;
     }
@@ -185,55 +145,104 @@ done:
     return ns;
 }
 
+static ns_t *ns_guess (flux_t h)
+{
+    ns_t *ns = xzmalloc (sizeof (*ns));
+    int size, rank;
+    bool treeroot;
+    uint32_t r;
+
+    if (flux_info (h, &rank, &size, &treeroot) < 0)
+        err_exit ("flux_info");
+    ns->ok = nodeset_new ();
+    ns->slow = nodeset_new ();
+    ns->fail = nodeset_new ();
+    ns->unknown = nodeset_new ();
+    if (!ns->ok || !ns->slow || !ns->fail || !ns->unknown)
+        oom ();
+
+    nodeset_add_rank (ns->ok, rank);
+    for (r = 0; r < size; r++) {
+        if (r != rank)
+            nodeset_add_rank (ns->unknown, r);
+    }
+    return ns;
+}
+
 static void ns_destroy (ns_t *ns)
 {
-    hostlist_destroy (ns->ok);
-    hostlist_destroy (ns->slow);
-    hostlist_destroy (ns->unknown);
-    hostlist_destroy (ns->fail);
+    nodeset_destroy (ns->ok);
+    nodeset_destroy (ns->slow);
+    nodeset_destroy (ns->unknown);
+    nodeset_destroy (ns->fail);
     free (ns);
 }
 
-static void nl_print (hostlist_t hl, const char *label, hlstr_type_t fmt)
+static void nodeset_print (nodeset_t ns, const char *label, fmt_t fmt)
 {
-    char *s = hostlist_tostring (hl, fmt);
-
+    const char *s;
+    switch (fmt) {
+        case FMT_RANGED:
+            nodeset_conf_ranges (ns, true);
+            nodeset_conf_separator (ns, ',');
+            break;
+        case FMT_COMMA:
+            nodeset_conf_ranges (ns, false);
+            nodeset_conf_separator (ns, ',');
+            break;
+        case FMT_NEWLINE:
+            nodeset_conf_ranges (ns, false);
+            nodeset_conf_separator (ns, '\n');
+            break;
+    }
+    s = nodeset_str (ns);
     if (label) {
-        if (fmt == HLSTR_NEWLINE)
+        if (fmt == FMT_NEWLINE)
             printf ("%-8s\n%s%s", label, s, strlen (s) > 0 ? "\n" : "");
         else
             printf ("%-8s%s\n", label, s);
     } else {
-        if (fmt == HLSTR_NEWLINE)
+        if (fmt == FMT_NEWLINE)
             printf ("%s%s", s, strlen (s) > 0 ? "\n" : "");
         else
             printf ("%s\n", s);
     }
-    free (s);
 }
 
-static void ns_print (ns_t *ns, hlstr_type_t fmt)
+static nodeset_t ns_merge (nodeset_t ns1, nodeset_t ns2)
 {
-    nl_print (ns->ok, "ok:", fmt);
-    nl_print (ns->slow, "slow:", fmt);
-    nl_print (ns->fail, "fail:", fmt);
-    nl_print (ns->unknown, "unknown:", fmt);
-}
+    nodeset_t ns = nodeset_dup (ns1);
+    nodeset_itr_t itr;
+    uint32_t r;
 
-static void ns_print_up (ns_t *ns, hlstr_type_t fmt)
-{
-    hostlist_t hl = hostlist_copy (ns->ok);
-    if (!hl)
+    if (!ns || !(itr = nodeset_itr_new (ns2)))
         oom ();
-    (void)hostlist_push_list (hl, ns->slow);
-    nl_print (hl, NULL, fmt);
-    hostlist_destroy (hl);
+    while ((r = nodeset_next (itr)) != NODESET_EOF)
+        nodeset_add_rank (ns, r);
+    nodeset_itr_destroy (itr);
+    return ns;
 }
 
-static void ns_print_down (ns_t *ns, hlstr_type_t fmt)
+static void ns_print_up (ns_t *ns, fmt_t fmt)
 {
-    nl_print (ns->fail, NULL, fmt);
+    nodeset_t combined = ns_merge (ns->ok, ns->slow);
+    nodeset_print (combined, NULL, fmt);
+    nodeset_destroy (combined);
 }
+
+static void ns_print_down (ns_t *ns, fmt_t fmt)
+{
+    nodeset_print (ns->fail, NULL, fmt);
+}
+
+static void ns_print_all (ns_t *ns, fmt_t fmt)
+{
+    nodeset_print (ns->ok, "ok:", fmt);
+    nodeset_print (ns->slow, "slow:", fmt);
+    nodeset_print (ns->fail, "fail:", fmt);
+    nodeset_print (ns->unknown, "unknown:", fmt);
+}
+
 
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab
