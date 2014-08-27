@@ -203,7 +203,7 @@ static const double dfl_heartrate = 2;
 
 static const struct flux_handle_ops cmbd_handle_ops;
 
-#define OPTIONS "t:vR:S:p:M:X:L:N:Pke:r:s:c:fH:"
+#define OPTIONS "t:vR:S:p:M:X:L:N:Pke:r:s:c:fnH:"
 static const struct option longopts[] = {
     {"sid",             required_argument,  0, 'N'},
     {"child-uri",       required_argument,  0, 't'},
@@ -220,6 +220,7 @@ static const struct option longopts[] = {
     {"k-ary",           required_argument,  0, 'k'},
     {"event-uri",       required_argument,  0, 'e'},
     {"command",         required_argument,  0, 'c'},
+    {"noshell",         no_argument,        0, 'n'},
     {"heartrate",       required_argument,  0, 'H'},
     {0, 0, 0, 0},
 };
@@ -243,6 +244,7 @@ static void usage (void)
 " -P,--pmi-boot                Bootstrap via PMI\n"
 " -k,--k-ary K                 Wire up in a k-ary tree\n"
 " -c,--command string          Run command on rank 0\n"
+" -n,--noshell                 Do not spawn a shell even if on a tty\n"
 " -f,--force                   Kill rival cmbd and start\n"
 " -H,--heartrate SECS          Set heartrate in seconds (rank 0 only)\n"
 );
@@ -255,6 +257,7 @@ int main (int argc, char *argv[])
     ctx_t ctx;
     endpt_t *ep;
     bool fopt = false;
+    bool nopt = false;
 
     memset (&ctx, 0, sizeof (ctx));
     log_init (argv[0]);
@@ -340,6 +343,9 @@ int main (int argc, char *argv[])
                 if (ctx.shell_cmd)
                     free (ctx.shell_cmd);
                 ctx.shell_cmd = xstrdup (optarg);
+                break;
+            case 'n':   /* --noshell */
+                nopt = true;
                 break;
             case 'f':   /* --force */
                 fopt = true;
@@ -434,7 +440,7 @@ int main (int argc, char *argv[])
     update_environment (&ctx);
     update_pidfile (&ctx, fopt);
 
-    if (ctx.rank == 0 && (isatty (0) || ctx.shell_cmd))
+    if (!nopt && ctx.rank == 0 && (isatty (0) || ctx.shell_cmd))
         rank0_shell (&ctx);
 
     cmbd_init_socks (&ctx);
