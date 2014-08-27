@@ -15,7 +15,7 @@ declare srun_ntasks=
 
 declare cmbd_kary=
 declare cmbd_modules="modctl,api,barrier,live,log,kvs,job,rexec,resrc,sched[0]"
-declare cmbd_opts="--pmi-boot"
+declare cmbd_opts="--pmi-boot --logdest=cmbd.log"
 declare cmbd_modopts="\
   sched:rdl-conf=conf/hype.lua\
   kvs:conf.log.reduction-timeout-msec=100\
