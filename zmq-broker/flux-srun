@@ -1,0 +1,68 @@
+#!/bin/bash
+
+# Launch Flux within a SLURM job
+
+declare prog="flux-srun"
+
+declare srun_partition=
+declare srun_opts="--propagate=CORE"
+declare srun_nnodes=${SLURM_NNODES:-1}
+
+
+declare cmbd_kary=
+declare cmbd_modules="modctl,api,barrier,live,log,kvs,job,rexec,resrc,sched[0]"
+declare cmbd_opts="--pmi-boot"
+declare cmbd_modopts="\
+  sched:rdl-conf=conf/hype.lua\
+  kvs:conf.log.reduction-timeout-msec=100\
+  kvs:conf.log.circular-buffer-entries=100000\
+  kvs:conf.log.persist-level=debug"
+
+
+usage()
+{
+    echo "Usage: $prog OPTIONS [command [args...]]" >&2
+    echo "  -N N            set number of nodes" >&2
+    echo "  -M m1,m2,...    set additional modules to load" >&2
+    echo "  -O mod:var=val  set additional module options" >&2
+    echo "  -p NAME         set partition to use" >&2
+    echo "  -k N            set k-ary tree fanout" >&2
+    echo "  -X              print srun command line without running it" >&2
+    exit 1;
+}
+
+while getopts ":hN:p:M:O:k:X" opt; do
+    case ${opt} in
+        \?) break;;
+        h) usage ;;
+        N) srun_nnodes=${OPTARG};;
+        p) srun_partition=${OPTARG};;
+        M) cmbd_modules="${cmbd_modules},${OPTARG}";;
+        O) cmbd_modopts="${cmbd_modopts} ${OPTARG}";;
+        k) cmbd_kary=${OPTARG};;
+        X) wrapper=echo;;
+    esac
+done
+
+# leftover arguments are assumed to be --command to execute
+# If there are none, run with --pty for interactive shell on rank 0
+ARGS=( ${@:$OPTIND} )
+if test ${#ARGS[@]} -eq 0; then
+    srun_opts="${srun_opts} --pty"
+    set ""
+else
+    set "${ARGS[@]}"
+fi
+
+ulimit -c unlimited
+
+test -n "$wrapper" || set -x
+$wrapper srun ${srun_opts} -N${srun_nnodes} \
+    ${srun_partition:+--partition=${srun_partition}} \
+    ./cmbd ${cmbd_opts} \
+    ${cmbd_kary:+--k-ary=${cmbd_kary}} \
+    ${cmbd_modules:+--plugins=${cmbd_modules}} \
+    ${@:+--command=\"$@\"} \
+    ${cmbd_modopts}
+
+# vi:tabstop=4 shiftwidth=4 expandtab
