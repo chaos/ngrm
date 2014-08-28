@@ -129,7 +129,7 @@ typedef struct {
     sigset_t default_sigset;
     /* Bootstrap
      */
-    char *pmi_libname;
+    bool pmi_boot;
     struct pmi_struct *pmi;
     int k_ary;
     /* Heartbeat
@@ -196,10 +196,9 @@ static void update_proctitle (ctx_t *ctx);
 static void update_environment (ctx_t *ctx);
 static void update_pidfile (ctx_t *ctx, bool force);
 static void rank0_shell (ctx_t *ctx);
-static void boot_pmi (ctx_t *ctx);
-static void boot_local (ctx_t *ctx);
+static void pmi_boot (ctx_t *ctx);
 static struct pmi_struct *pmi_init (const char *libname);
-static void pmi_fini (struct pmi_struct *pmi);
+static void local_boot (ctx_t *ctx);
 
 static const double min_heartrate = 0.01;   /* min seconds */
 static const double max_heartrate = 30;     /* max seconds */
@@ -327,7 +326,7 @@ int main (int argc, char *argv[])
                 log_set_dest (optarg);
                 break;
             case 'P':   /* --pmi-boot */
-                ctx.pmi_libname = "/usr/lib64/libpmi.so"; /* FIXME - config */
+                ctx.pmi_boot = true;
                 break;
             case 'k':   /* --k-ary k */
                 ctx.k_ary = strtoul (optarg, NULL, 10);
@@ -383,7 +382,7 @@ int main (int argc, char *argv[])
     /* Sets rank, size, parent URI.
      * Initialize child socket.
      */
-    if (ctx.pmi_libname) {
+    if (ctx.pmi_boot) {
         if (ctx.child)
             msg_exit ("--child-uri should not be specified with --pmi-boot");
         if (zlist_size (ctx.parents) > 0)
@@ -392,8 +391,7 @@ int main (int argc, char *argv[])
             msg_exit ("--event-uri should not be specified with --pmi-boot");
         if (ctx.sid)
             msg_exit ("--session-id should not be specified with --pmi-boot");
-        ctx.pmi = pmi_init (ctx.pmi_libname);
-        boot_pmi (&ctx);
+        pmi_boot (&ctx);
     }
     if (!ctx.sid)
         ctx.sid = xstrdup ("0");
@@ -408,7 +406,7 @@ int main (int argc, char *argv[])
      */
     if (ctx.size > 1 && !ctx.gevent && !ctx.child
                                     && zlist_size (ctx.parents) == 0) {
-        boot_local (&ctx);
+        local_boot (&ctx);
     }
     if (ctx.treeroot && zlist_size (ctx.parents) > 0)
         msg_exit ("treeroot must NOT have parent");
@@ -472,9 +470,6 @@ int main (int argc, char *argv[])
         zloop_timer_end (ctx.zl, ctx.heartbeat_tid);
     }
     cmbd_fini (&ctx);
-
-    if (ctx.pmi)
-        pmi_fini (ctx.pmi);
 
     while ((ep = zlist_pop (ctx.parents)))
         endpt_destroy (ep);
@@ -640,10 +635,24 @@ static struct pmi_struct *pmi_init (const char *libname)
     return pmi;
 }
 
+static void pmi_abort (struct pmi_struct *pmi, int rc, const char *fmt, ...)
+{
+    va_list ap;
+    char *s;
+
+    va_start (ap, fmt);
+    if (vasprintf (&s, fmt, ap) < 0)
+        oom ();
+    va_end (ap);
+    pmi->abort (rc, s);
+    /*NOTREACHED*/
+    free (s);
+}
+
 static void pmi_fini (struct pmi_struct *pmi)
 {
     if (pmi->finalize () != PMI_SUCCESS)
-        msg_exit ("PMI_Finalize failed");
+        pmi_abort (pmi, 1, "PMI_Finalize failed");
     free (pmi->clique);
     free (pmi->kname);
     free (pmi->key);
@@ -669,10 +678,10 @@ static void pmi_kvs_put (struct pmi_struct *pmi, const char *val,
 
     va_start (ap, fmt);
     if (vsnprintf (pmi->key, klen, fmt, ap) >= klen)
-        msg_exit ("%s: key longer than %d", __FUNCTION__, klen);
+        pmi_abort (pmi, 1, "%s: key longer than %d", __FUNCTION__, klen);
     va_end (ap);
     if (pmi->kvs_put (pmi->kname, pmi->key, val) != PMI_SUCCESS)
-        msg_exit ("PMI_KVS_Put %s=%s failed", pmi->key, val);
+        pmi_abort (pmi, 1, "PMI_KVS_Put %s=%s failed", pmi->key, val);
 }
 
 static char *pmi_kvs_get (struct pmi_struct *pmi, const char *fmt, ...)
@@ -683,40 +692,40 @@ static char *pmi_kvs_get (struct pmi_struct *pmi, const char *fmt, ...)
 
     va_start (ap, fmt);
     if (vsnprintf (pmi->key, klen, fmt, ap) >= klen)
-        msg_exit ("%s: key longer than %d", __FUNCTION__, klen);
+        pmi_abort (pmi, 1, "%s: key longer than %d", __FUNCTION__, klen);
     va_end (ap);
     if (pmi->kvs_get (pmi->kname, pmi->key, pmi->val, vlen) != PMI_SUCCESS)
-        msg_exit ("PMI_KVS_Get %s failed", pmi->key);
+        pmi_abort (pmi, 1, "PMI_KVS_Get %s failed", pmi->key);
     return pmi->val;
 }
 
 static void pmi_kvs_fence (struct pmi_struct *pmi)
 {
     if (pmi->kvs_commit (pmi->kname) != PMI_SUCCESS)
-        msg_exit ("PMI_KVS_Commit failed");
+        pmi_abort (pmi, 1, "PMI_KVS_Commit failed");
     if (pmi->barrier () != PMI_SUCCESS)
-        msg_exit ("PMI_Barrier failed");
+        pmi_abort (pmi, 1, "PMI_Barrier failed");
 }
 
 /* Get IP address to use for communication.
  * FIXME: add option to override this via commandline, e.g. --iface=eth0
  */
-static void get_ipaddr (char *ipaddr, int len)
+static void pmi_getip (struct pmi_struct *pmi, char *ipaddr, int len)
 {
     char hostname[HOST_NAME_MAX + 1];
     struct addrinfo hints, *res = NULL;
     int e;
 
     if (gethostname (hostname, sizeof (hostname)) < 0)
-        err_exit ("gethostname");
+        pmi_abort (pmi, 1, "gethostname: %s", strerror (errno));
     memset (&hints, 0, sizeof (hints));
     hints.ai_family = PF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     if ((e = getaddrinfo (hostname, NULL, &hints, &res)) || res == NULL)
-        msg_exit ("getaddrinfo %s: %s", hostname, gai_strerror (e));
+        pmi_abort (pmi, 1, "getaddrinfo %s: %s", hostname, gai_strerror (e));
     if ((e = getnameinfo (res->ai_addr, res->ai_addrlen, ipaddr, len,
                           NULL, 0, NI_NUMERICHOST)))
-        msg_exit ("getnameinfo %s: %s", hostname, gai_strerror (e));
+        pmi_abort (pmi, 1, "getnameinfo %s: %s", hostname, gai_strerror (e));
 }
 
 /* N.B. If there are multiple nodes and multiple cmbds per node, the
@@ -724,9 +733,9 @@ static void get_ipaddr (char *ipaddr, int len)
  * and relay events to an ipc:// socket for the other ranks in the
  * clique.  This is required due to a limitation of epgm.
  */
-static void boot_pmi (ctx_t *ctx)
+static void pmi_boot (ctx_t *ctx)
 {
-    struct pmi_struct *pmi = ctx->pmi;
+    struct pmi_struct *pmi = pmi_init ("libpmi.so");
     bool relay_needed = (pmi->clique_size > 1);
     int relay_rank = pmi_clique_minrank (pmi);
     int right_rank = pmi->rank == 0 ? pmi->size - 1 : pmi->rank - 1;
@@ -736,7 +745,7 @@ static void boot_pmi (ctx_t *ctx)
     ctx->rank = pmi->rank;
     ctx->sid = xstrdup (pmi->id);
 
-    get_ipaddr (ipaddr, sizeof (ipaddr));
+    pmi_getip (pmi, ipaddr, sizeof (ipaddr));
     ctx->child = endpt_create ("tcp://%s:*", ipaddr);
     cmbd_init_child (ctx, ctx->child); /* obtain dyn port */
     pmi_kvs_put (pmi, ctx->child->uri, "cmbd.%d.uri", ctx->rank);
@@ -765,9 +774,10 @@ static void boot_pmi (ctx_t *ctx)
         int p = 5000 + pmi->appnum % 1024;
         ctx->gevent = endpt_create ("epgm://%s;239.192.1.1:%d", ipaddr, p);
     }
+    pmi_fini (ctx->pmi);
 }
 
-static void boot_local (ctx_t *ctx)
+static void local_boot (ctx_t *ctx)
 {
     const char *tmpdir = getenv ("TMPDIR");
     int rrank = ctx->rank == 0 ? ctx->size - 1 : ctx->rank - 1;
@@ -1182,11 +1192,11 @@ static void cmbd_init_socks (ctx_t *ctx)
         cmbd_init_gevent_pub (ctx, ctx->gevent);
     if (ctx->rank > 0 && ctx->gevent)
         cmbd_init_gevent_sub (ctx, ctx->gevent);
-    if (ctx->child && !ctx->child->zs)      /* boot_pmi may have done this */
+    if (ctx->child && !ctx->child->zs)      /* pmi_boot may have done this */
         cmbd_init_child (ctx, ctx->child);
     if (ctx->right)
         cmbd_init_right (ctx, ctx->right);
-    /* N.B. boot_pmi may have created a gevent relay too - no work to do here */
+    /* N.B. pmi_boot may have created a gevent relay too - no work to do here */
 #if 0
     /* Increase max number of sockets and number of I/O thraeds.
      * (N.B. must call zctx_underlying () only after first socket is created)
