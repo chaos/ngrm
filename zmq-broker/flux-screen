@@ -10,6 +10,7 @@ declare vg_opts="--tool=memcheck --leak-check=full -v"
 declare gdb_opts="-ex run --args"
 
 declare attach_rank=
+declare run_rank=
 declare shutdown=
 
 declare cmd_wrapper=
@@ -27,10 +28,10 @@ declare cmbd_modopts="\
   kvs:conf.log.persist-level=debug"
 
 declare -r path_getopt="/usr/bin/getopt"
-declare -r short_opts="hN:gVs:M:O:k:Xa:SL"
+declare -r short_opts="hN:gVs:M:O:k:Xa:r:SL"
 declare -r long_opts="\
-help,nnodes:,gdb,valgrind,sid:,module:,modopt:,k-ary:,noexec,attach:,shutdown,\
-list"
+help,nnodes:,gdb,valgrind,sid:,module:,modopt:,k-ary:,noexec,attach:,run:,\
+shutdown,list"
 
 declare -r usage="\
 Usage: $prog OPTIONS [command [args...]]\n\
@@ -43,6 +44,7 @@ Usage: $prog OPTIONS [command [args...]]\n\
    -k,--k-ary N                set reduction tree fanout\n\
    -X,--noexec                 print command lines without running them
    -a,--attach N               attach to rank N
+   -r,--run N                  run command with TMPDIR set for rank N
    -L,--list                   list sessions
    -S,--shutdown               shutdown session"
 
@@ -77,6 +79,7 @@ while true; do
         -k|--k-ary)      cmbd_kary=$2;                       shift 2 ;;
         -X|--noexec)     cmd_wrapper=echo;                   shift 1 ;;
         -a|--attach)     attach_rank=$2;                     shift 2 ;;
+        -r|--run)        run_rank=$2;                        shift 2 ;;
         -S|--shutdown)   shutdown=1;                         shift 1 ;;
         -L|--list)       listscreens=1;                      shift 1 ;;
         --)              shift; break                                ;;
@@ -93,11 +96,14 @@ fi
 
 # find invalid argument combinations
 if test -z "$cmbd_size" -a -z "$attach_rank" -a -z "$shutdown"\
-                        -a -z "$listscreens"; then
+                        -a -z "$run_rank" -a -z "$listscreens"; then
     usage; exit 1
 fi
 if test -n "$1" && test -n "$attach_rank" -o -n "$shutdown" \
                                           -o -n "$listscreens"; then
+    usage; exit 1
+fi
+if test -z "$1" && test -n "$run_rank"; then
     usage; exit 1
 fi
 
@@ -109,6 +115,9 @@ elif test -n "$shutdown"; then
     exec screen -S ${cmbd_sid} -X quit
 elif test -n "$listscreens"; then
     exec screen -list
+elif test -n "$run_rank"; then
+    export TMPDIR=${TMPDIR:-/tmp}/flux-${cmbd_sid}-${run_rank}
+    exec "$@"
 fi    
 
 #test -n "$cmd_wrapper" || set -x
