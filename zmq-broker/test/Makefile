@@ -18,17 +18,13 @@ all: $(BUILD)
 check:
 	$(TOP)/cmbd -c "make xcheck"
 
-# for screen3
-check0:
-	@echo Checking rank 0
-	@export TMPDIR=$${TMPDIR:-/tmp}/flux-screen-0; make xcheck
-check1:
-	@echo Checking rank 1
-	@export TMPDIR=$${TMPDIR:-/tmp}/flux-screen-1; make xcheck
-check2:
-	@echo Checking rank 2
-	@export TMPDIR=$${TMPDIR:-/tmp}/flux-screen-2; make xcheck
-check3: check0 check1 check2
+# Usage: make screencheck SIZE=N [SID=name]
+screencheck:
+	@for rank in `seq 0 $$(($$SIZE - 1))`; do \
+		(export TMPDIR=$${TMPDIR:-/tmp}/flux-$${SID:-screen}-$$rank; \
+		echo Checking rank $$rank - TMPDIR=$$TMPDIR; \
+		make xcheck); \
+	done	
 
 xcheck:
 	@export LUA_CPATH=";;$(TOP)/dlua/?.so"; \
