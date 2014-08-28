@@ -18,18 +18,18 @@ all: $(BUILD)
 check:
 	$(TOP)/cmbd -c "make xcheck"
 
-# Usage: make screencheck SIZE=N [SID=name]
 screencheck:
+	@test -n "$$SIZE" || echo "Usage: make screencheck SIZE=N [SID=name]"
 	@for rank in `seq 0 $$(($$SIZE - 1))`; do \
-		(export TMPDIR=$${TMPDIR:-/tmp}/flux-$${SID:-screen}-$$rank; \
-		echo Checking rank $$rank - TMPDIR=$$TMPDIR; \
-		make xcheck); \
+		$(TOP)/flux screen --sid=$${SID:-screen} \ --run $$rank \
+			 make xcheck; \
 	done	
 
 xcheck:
 	@export LUA_CPATH=";;$(TOP)/dlua/?.so"; \
 	export LUA_PATH=";;$(TOP)/dlua/?.lua"; \
 	rc=0; \
+	if test -n "$$TMPDIR"; then echo TMPDIR=$$TMPDIR; fi; \
 	for tst in $${TESTS:-t[0-9][0-9]}; do \
 		./$$tst; \
 		if [ $$? -eq 0 ]; then \
