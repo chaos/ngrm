@@ -18,7 +18,6 @@
 #include <stdbool.h>
 #include <sys/time.h>
 #include <dlfcn.h>
-#include <pmi.h>
 
 #include <json/json.h>
 #include <zmq.h>
@@ -32,6 +31,7 @@
 #include "handle.h"
 #include "security.h"
 #include "nodeset.h"
+#include "pmiwrap.h"
 
 #ifndef ZMQ_IMMEDIATE
 #define ZMQ_IMMEDIATE           ZMQ_DELAY_ATTACH_ON_CONNECT
@@ -45,38 +45,6 @@ typedef struct {
     void *zs;
     char *uri;
 } endpt_t;
-
-typedef struct pmi_struct *pmi_t;
-struct pmi_struct {
-    int (*init)(int *);
-    int (*get_size)(int *);
-    int (*get_rank)(int *);
-    int (*get_appnum)(int *);
-    int (*get_id_length_max)(int *);
-    int (*get_id)(char *, int);
-    int (*get_clique_size)(int *);
-    int (*get_clique_ranks)(int *, int);
-    int (*kvs_get_my_name)(char *, int);
-    int (*kvs_get_name_length_max)(int *);
-    int (*kvs_get_key_length_max)(int *);
-    int (*kvs_get_value_length_max)(int *);
-    int (*kvs_put)(const char *, const char *, const char *);
-    int (*kvs_commit)(const char *);
-    int (*barrier)(void);
-    int (*kvs_get)(const char *, const char *, char *, int);
-    int (*abort)(int, const char *);
-    int (*finalize)(void);
-    void *dso;
-    int size, rank, spawned;
-    int appnum;                 /* SLURM jobid */
-    int name_length_max, key_length_max, value_length_max, id_length_max;
-    char *id;                   /* SLURM jobid.stepid */
-    int *clique;
-    int clique_size;
-    char *kname;
-    char *key;
-    char *val;
-};
 
 typedef struct {
     /* 0MQ
@@ -197,7 +165,6 @@ static void update_environment (ctx_t *ctx);
 static void update_pidfile (ctx_t *ctx, bool force);
 static void rank0_shell (ctx_t *ctx);
 static void pmi_boot (ctx_t *ctx);
-static pmi_t pmi_init (const char *libname);
 static void local_boot (ctx_t *ctx);
 
 static const double min_heartrate = 0.01;   /* min seconds */
@@ -565,213 +532,6 @@ static void rank0_shell (ctx_t *ctx)
     }
 }
 
-typedef struct {
-    int errnum;
-    const char *errstr;
-} etab_t;
-
-etab_t pmi_errors[] = {
-    { PMI_SUCCESS,              "operation completed successfully" },
-    { PMI_FAIL,                 "operation failed" },
-    { PMI_ERR_NOMEM,            "input buffer not large enough" },
-    { PMI_ERR_INIT,             "PMI not initialized" },
-    { PMI_ERR_INVALID_ARG,      "invalid argument" },
-    { PMI_ERR_INVALID_KEY,      "invalid key argument" },
-    { PMI_ERR_INVALID_KEY_LENGTH,"invalid key length argument" },
-    { PMI_ERR_INVALID_VAL,      "invalid val argument" },
-    { PMI_ERR_INVALID_VAL_LENGTH,"invalid val length argument" },
-    { PMI_ERR_INVALID_LENGTH,   "invalid length argument" },
-    { PMI_ERR_INVALID_NUM_ARGS, "invalid number of arguments" },
-    { PMI_ERR_INVALID_ARGS,     "invalid args argument" },
-    { PMI_ERR_INVALID_NUM_PARSED, "invalid num_parsed length argument" },
-    { PMI_ERR_INVALID_KEYVALP,  "invalid keyvalp argument" },
-    { PMI_ERR_INVALID_SIZE,     "invalid size argument" },
-};
-const int pmi_errors_len = sizeof (pmi_errors) / sizeof (pmi_errors[0]);
-
-const char *pmi_strerror (int rc)
-{
-    static char unknown[] = "pmi error XXXXXXXXX";
-    int i;
-
-    for (i = 0; i < pmi_errors_len; i++) {
-        if (pmi_errors[i].errnum == rc)
-            return pmi_errors[i].errstr;
-    }
-    snprintf (unknown, sizeof (unknown), "pmi error %d", rc);
-    return unknown;
-}
-
-static void pmi_abort (pmi_t pmi, int rc, const char *fmt, ...)
-{
-    va_list ap;
-    char *s;
-
-    va_start (ap, fmt);
-    if (vasprintf (&s, fmt, ap) < 0)
-        oom ();
-    va_end (ap);
-    pmi->abort (rc, s);
-    /*NOTREACHED*/
-    free (s);
-}
-
-static pmi_t pmi_init (const char *libname)
-{
-    pmi_t pmi = xzmalloc (sizeof (*pmi));
-    int e;
-
-    dlerror ();
-    pmi->dso = dlopen (libname, RTLD_NOW | RTLD_GLOBAL);
-    if (!pmi->dso || !(pmi->init = dlsym (pmi->dso, "PMI_Init"))
-                  || !(pmi->get_size = dlsym (pmi->dso, "PMI_Get_size"))
-                  || !(pmi->get_rank = dlsym (pmi->dso, "PMI_Get_rank"))
-                  || !(pmi->get_appnum = dlsym (pmi->dso, "PMI_Get_appnum"))
-                  || !(pmi->get_id_length_max = dlsym (pmi->dso,
-                                                "PMI_Get_id_length_max"))
-                  || !(pmi->get_id = dlsym (pmi->dso, "PMI_Get_id"))
-                  || !(pmi->get_clique_size = dlsym (pmi->dso,
-                                                "PMI_Get_clique_size"))
-                  || !(pmi->get_clique_ranks = dlsym (pmi->dso,
-                                                "PMI_Get_clique_ranks"))
-                  || !(pmi->kvs_get_my_name = dlsym (pmi->dso,
-                                                "PMI_KVS_Get_my_name"))
-                  || !(pmi->kvs_get_name_length_max = dlsym (pmi->dso,
-                                                "PMI_KVS_Get_name_length_max"))
-                  || !(pmi->kvs_get_key_length_max = dlsym (pmi->dso,
-                                                "PMI_KVS_Get_key_length_max"))
-                  || !(pmi->kvs_get_value_length_max = dlsym (pmi->dso,
-                                                "PMI_KVS_Get_value_length_max"))
-                  || !(pmi->kvs_put = dlsym (pmi->dso, "PMI_KVS_Put"))
-                  || !(pmi->kvs_commit = dlsym (pmi->dso, "PMI_KVS_Commit"))
-                  || !(pmi->barrier = dlsym (pmi->dso, "PMI_Barrier"))
-                  || !(pmi->kvs_get = dlsym (pmi->dso, "PMI_KVS_Get"))
-                  || !(pmi->abort = dlsym (pmi->dso, "PMI_Abort"))
-                  || !(pmi->finalize = dlsym (pmi->dso, "PMI_Finalize")))
-        msg_exit ("%s: %s", libname, dlerror ());
-    if (pmi->init (&pmi->spawned) != PMI_SUCCESS)
-        msg_exit ("PMI_Init failed");
-
-    if ((e = pmi->get_size (&pmi->size)) != PMI_SUCCESS)
-        pmi_abort (pmi, 1, "PMI_Get_size: %s", pmi_strerror (e));
-    if ((e = pmi->get_rank (&pmi->rank)) != PMI_SUCCESS)
-        pmi_abort (pmi, 1, "PMI_Get_rank: %s", pmi_strerror (e));
-    if ((e = pmi->get_appnum (&pmi->appnum)) != PMI_SUCCESS)
-        pmi_abort (pmi, 1, "PMI_Get_appnum: %s", pmi_strerror (e));
-
-    if ((e = pmi->get_id_length_max (&pmi->id_length_max)) != PMI_SUCCESS)
-        pmi_abort (pmi, 1, "PMI_Get_id_length_max: %s", pmi_strerror (e));
-    pmi->id = xzmalloc (pmi->id_length_max);
-    if ((e = pmi->get_id (pmi->id, pmi->id_length_max)) != PMI_SUCCESS)
-        pmi_abort (pmi, 1, "PMI_Get_id: %s", pmi_strerror (e));
-
-    if ((e = pmi->get_clique_size (&pmi->clique_size)) != PMI_SUCCESS)
-        pmi_abort (pmi, 1, "PMI_Get_clique_size: %s", pmi_strerror (e));
-    pmi->clique = xzmalloc (sizeof (pmi->clique[0]) * pmi->clique_size);
-    if ((e = pmi->get_clique_ranks (pmi->clique, pmi->clique_size)) != PMI_SUCCESS)
-        pmi_abort (pmi, 1, "PMI_Get_clique_size: %s", pmi_strerror (e));
-    if ((e = pmi->kvs_get_name_length_max (&pmi->name_length_max)) != PMI_SUCCESS)
-        pmi_abort (pmi, 1, "PMI_KVS_Get_name_length_max: %s", pmi_strerror (e));
-    pmi->kname = xzmalloc (pmi->name_length_max);
-    if ((e = pmi->kvs_get_my_name (pmi->kname, pmi->name_length_max)) != PMI_SUCCESS)
-        pmi_abort (pmi, 1, "PMI_KVS_Get_my_name: %s", pmi_strerror (e));
-
-    if ((e = pmi->kvs_get_key_length_max (&pmi->key_length_max)) != PMI_SUCCESS)
-        pmi_abort (pmi, 1, "PMI_KVS_Get_key_length_max: %s", pmi_strerror (e));
-    pmi->key = xzmalloc (pmi->key_length_max);
-
-    if ((e = pmi->kvs_get_value_length_max (&pmi->value_length_max)) != PMI_SUCCESS)
-        pmi_abort (pmi, 1, "PMI_KVS_Get_value_length_max: %s", pmi_strerror (e));
-    pmi->val = xzmalloc (pmi->value_length_max);
-
-    return pmi;
-}
-
-static void pmi_fini (pmi_t pmi)
-{
-    int e;
-    if ((e = pmi->finalize ()) != PMI_SUCCESS)
-        pmi_abort (pmi, 1, "PMI_Finalize: %s", pmi_strerror (e));
-    free (pmi->clique);
-    free (pmi->kname);
-    free (pmi->key);
-    free (pmi->val);
-    dlclose (pmi->dso);
-    free (pmi);
-}
-
-static int pmi_clique_minrank (pmi_t pmi)
-{
-    int i, min = -1;
-    for (i = 0; i < pmi->clique_size; i++)
-        if (min == -1 || pmi->clique[i] < min)
-            min = pmi->clique[i];
-    return min;
-}
-
-static void pmi_kvs_put (pmi_t pmi, const char *val,
-                         const char *fmt, ...)
-{
-    va_list ap;
-    int klen = pmi->key_length_max;
-    int e;
-
-    va_start (ap, fmt);
-    if (vsnprintf (pmi->key, klen, fmt, ap) >= klen)
-        pmi_abort (pmi, 1, "%s: key longer than %d", __FUNCTION__, klen);
-    va_end (ap);
-    if ((e = pmi->kvs_put (pmi->kname, pmi->key, val)) != PMI_SUCCESS)
-        pmi_abort (pmi, 1, "PMI_KVS_Put %s=%s: %s", pmi->key, val,
-                   pmi_strerror (e));
-}
-
-static char *pmi_kvs_get (pmi_t pmi, const char *fmt, ...)
-{
-    va_list ap;
-    int klen = pmi->key_length_max;
-    int vlen = pmi->value_length_max;
-    int e;
-
-    va_start (ap, fmt);
-    if (vsnprintf (pmi->key, klen, fmt, ap) >= klen)
-        pmi_abort (pmi, 1, "%s: key longer than %d", __FUNCTION__, klen);
-    va_end (ap);
-    if ((e = pmi->kvs_get (pmi->kname, pmi->key, pmi->val, vlen)) != PMI_SUCCESS)
-        pmi_abort (pmi, 1, "PMI_KVS_Get %s: %s", pmi->key, pmi_strerror (e));
-    return pmi->val;
-}
-
-static void pmi_kvs_fence (pmi_t pmi)
-{
-    int e;
-
-    if ((e = pmi->kvs_commit (pmi->kname)) != PMI_SUCCESS)
-        pmi_abort (pmi, 1, "PMI_KVS_Commit: %s", pmi_strerror (e));
-    if ((e = pmi->barrier ()) != PMI_SUCCESS)
-        pmi_abort (pmi, 1, "PMI_Barrier: %s", pmi_strerror (e));
-}
-
-/* Get IP address to use for communication.
- * FIXME: add option to override this via commandline, e.g. --iface=eth0
- */
-static void pmi_getip (pmi_t pmi, char *ipaddr, int len)
-{
-    char hostname[HOST_NAME_MAX + 1];
-    struct addrinfo hints, *res = NULL;
-    int e;
-
-    if (gethostname (hostname, sizeof (hostname)) < 0)
-        pmi_abort (pmi, 1, "gethostname: %s", strerror (errno));
-    memset (&hints, 0, sizeof (hints));
-    hints.ai_family = PF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-    if ((e = getaddrinfo (hostname, NULL, &hints, &res)) || res == NULL)
-        pmi_abort (pmi, 1, "getaddrinfo %s: %s", hostname, gai_strerror (e));
-    if ((e = getnameinfo (res->ai_addr, res->ai_addrlen, ipaddr, len,
-                          NULL, 0, NI_NUMERICHOST)))
-        pmi_abort (pmi, 1, "getnameinfo %s: %s", hostname, gai_strerror (e));
-}
-
 /* N.B. If there are multiple nodes and multiple cmbds per node, the
  * lowest rank in each clique will subscribe to the epgm:// socket
  * and relay events to an ipc:// socket for the other ranks in the
@@ -780,14 +540,15 @@ static void pmi_getip (pmi_t pmi, char *ipaddr, int len)
 static void pmi_boot (ctx_t *ctx)
 {
     pmi_t pmi = pmi_init ("libpmi.so");
-    bool relay_needed = (pmi->clique_size > 1);
+    bool relay_needed = (pmi_clique_size (pmi) > 1);
     int relay_rank = pmi_clique_minrank (pmi);
-    int right_rank = pmi->rank == 0 ? pmi->size - 1 : pmi->rank - 1;
+    int right_rank = pmi_rank (pmi) == 0 ? pmi_size (pmi) - 1
+                                         : pmi_rank (pmi) - 1;
     char ipaddr[HOST_NAME_MAX + 1];
 
-    ctx->size = pmi->size;
-    ctx->rank = pmi->rank;
-    ctx->sid = xstrdup (pmi->id);
+    ctx->size = pmi_size (pmi);
+    ctx->rank = pmi_rank (pmi);
+    ctx->sid = xstrdup (pmi_id (pmi));
 
     pmi_getip (pmi, ipaddr, sizeof (ipaddr));
     ctx->child = endpt_create ("tcp://%s:*", ipaddr);
@@ -812,10 +573,10 @@ static void pmi_boot (ctx_t *ctx)
     ctx->right = endpt_create (pmi_kvs_get (pmi, "cmbd.%d.uri", right_rank));
 
     if (relay_needed && ctx->rank != relay_rank) {
-        char *uri = pmi_kvs_get (pmi, "cmbd.%d.relay", relay_rank);
+        const char *uri = pmi_kvs_get (pmi, "cmbd.%d.relay", relay_rank);
         ctx->gevent = endpt_create (uri);
     } else {
-        int p = 5000 + pmi->appnum % 1024;
+        int p = 5000 + pmi_appnum (pmi) % 1024;
         ctx->gevent = endpt_create ("epgm://%s;239.192.1.1:%d", ipaddr, p);
     }
     pmi_fini (pmi);
