@@ -130,7 +130,6 @@ typedef struct {
     /* Bootstrap
      */
     bool pmi_boot;
-    struct pmi_struct *pmi;
     int k_ary;
     /* Heartbeat
      */
@@ -774,7 +773,7 @@ static void pmi_boot (ctx_t *ctx)
         int p = 5000 + pmi->appnum % 1024;
         ctx->gevent = endpt_create ("epgm://%s;239.192.1.1:%d", ipaddr, p);
     }
-    pmi_fini (ctx->pmi);
+    pmi_fini (pmi);
 }
 
 static void local_boot (ctx_t *ctx)
