@@ -46,6 +46,7 @@ typedef struct {
     char *uri;
 } endpt_t;
 
+typedef struct pmi_struct *pmi_t;
 struct pmi_struct {
     int (*init)(int *);
     int (*get_size)(int *);
@@ -196,7 +197,7 @@ static void update_environment (ctx_t *ctx);
 static void update_pidfile (ctx_t *ctx, bool force);
 static void rank0_shell (ctx_t *ctx);
 static void pmi_boot (ctx_t *ctx);
-static struct pmi_struct *pmi_init (const char *libname);
+static pmi_t pmi_init (const char *libname);
 static void local_boot (ctx_t *ctx);
 
 static const double min_heartrate = 0.01;   /* min seconds */
@@ -601,7 +602,7 @@ const char *pmi_strerror (int rc)
     return unknown;
 }
 
-static void pmi_abort (struct pmi_struct *pmi, int rc, const char *fmt, ...)
+static void pmi_abort (pmi_t pmi, int rc, const char *fmt, ...)
 {
     va_list ap;
     char *s;
@@ -615,9 +616,9 @@ static void pmi_abort (struct pmi_struct *pmi, int rc, const char *fmt, ...)
     free (s);
 }
 
-static struct pmi_struct *pmi_init (const char *libname)
+static pmi_t pmi_init (const char *libname)
 {
-    struct pmi_struct *pmi = xzmalloc (sizeof (*pmi));
+    pmi_t pmi = xzmalloc (sizeof (*pmi));
     int e;
 
     dlerror ();
@@ -686,7 +687,7 @@ static struct pmi_struct *pmi_init (const char *libname)
     return pmi;
 }
 
-static void pmi_fini (struct pmi_struct *pmi)
+static void pmi_fini (pmi_t pmi)
 {
     int e;
     if ((e = pmi->finalize ()) != PMI_SUCCESS)
@@ -699,7 +700,7 @@ static void pmi_fini (struct pmi_struct *pmi)
     free (pmi);
 }
 
-static int pmi_clique_minrank (struct pmi_struct *pmi)
+static int pmi_clique_minrank (pmi_t pmi)
 {
     int i, min = -1;
     for (i = 0; i < pmi->clique_size; i++)
@@ -708,7 +709,7 @@ static int pmi_clique_minrank (struct pmi_struct *pmi)
     return min;
 }
 
-static void pmi_kvs_put (struct pmi_struct *pmi, const char *val,
+static void pmi_kvs_put (pmi_t pmi, const char *val,
                          const char *fmt, ...)
 {
     va_list ap;
@@ -724,7 +725,7 @@ static void pmi_kvs_put (struct pmi_struct *pmi, const char *val,
                    pmi_strerror (e));
 }
 
-static char *pmi_kvs_get (struct pmi_struct *pmi, const char *fmt, ...)
+static char *pmi_kvs_get (pmi_t pmi, const char *fmt, ...)
 {
     va_list ap;
     int klen = pmi->key_length_max;
@@ -740,7 +741,7 @@ static char *pmi_kvs_get (struct pmi_struct *pmi, const char *fmt, ...)
     return pmi->val;
 }
 
-static void pmi_kvs_fence (struct pmi_struct *pmi)
+static void pmi_kvs_fence (pmi_t pmi)
 {
     int e;
 
@@ -753,7 +754,7 @@ static void pmi_kvs_fence (struct pmi_struct *pmi)
 /* Get IP address to use for communication.
  * FIXME: add option to override this via commandline, e.g. --iface=eth0
  */
-static void pmi_getip (struct pmi_struct *pmi, char *ipaddr, int len)
+static void pmi_getip (pmi_t pmi, char *ipaddr, int len)
 {
     char hostname[HOST_NAME_MAX + 1];
     struct addrinfo hints, *res = NULL;
@@ -778,7 +779,7 @@ static void pmi_getip (struct pmi_struct *pmi, char *ipaddr, int len)
  */
 static void pmi_boot (ctx_t *ctx)
 {
-    struct pmi_struct *pmi = pmi_init ("libpmi.so");
+    pmi_t pmi = pmi_init ("libpmi.so");
     bool relay_needed = (pmi->clique_size > 1);
     int relay_rank = pmi_clique_minrank (pmi);
     int right_rank = pmi->rank == 0 ? pmi->size - 1 : pmi->rank - 1;
