@@ -7,6 +7,7 @@
 
 #include <stdlib.h>
 #include <json/json.h>
+#include <stdbool.h>
 
 /*
  *  Forward declarations:
@@ -212,5 +213,7 @@ char * rdl_accumulator_serialize (struct rdl_accumulator *a);
  *  Copy the accumulated resource data in [a] to a new RDL object.
  */
 struct rdl * rdl_accumulator_copy (struct rdl_accumulator *a);
+
+bool rdl_accumulator_is_empty (struct rdl_accumulator *a);
 
 #endif /* !FLUX_RDL_H */

@@ -13,6 +13,7 @@
 #include "shortjson.h"
 #include "plugin.h"
 #include "simulator.h"
+#include "signal.h"
 
 //ctx is used in several other modules and I liked the idea
 //Its main use is to pass around the global state between functions
@@ -106,7 +107,9 @@ static int handle_next_event (ctx_t *ctx){
 		}
 	}
 	if (min_event_time == NULL){
-		flux_log (ctx->h, LOG_INFO, "No events remaining");
+		flux_log (ctx->h, LOG_ERR, "No events remaining");
+        sleep(5);
+        raise(9);
 		return -1;
 	}
 	while (zlist_size (keys) > 0){
@@ -131,6 +134,8 @@ static int handle_next_event (ctx_t *ctx){
 		//flux_log (ctx->h, LOG_DEBUG, "Time was not advanced while triggering the next event for %s", mod_name);
 	}
 	flux_log (ctx->h, LOG_INFO, "Triggering %s.  Curr sim time: %f", mod_name, sim_state->sim_time);
+
+	usleep (1500);
 
 	*min_event_time = -1;
 	rc = send_trigger (ctx->h, mod_name, sim_state);

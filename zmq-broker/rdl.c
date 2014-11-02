@@ -548,7 +548,7 @@ struct resource * rdl_resource_get (struct rdl *rdl, const char *uri)
         uri = "default";
     rdl_dostringf (rdl, "return rdl:resource ('%s')", uri);
     if (lua_type (rdl->L, -1) != LUA_TTABLE) {
-        VERR (rdl->rl, "resource (%s): %s\n", uri, lua_tostring (rdl->L, -1));
+        VERR (rdl->rl, "resource (%s): %s", uri, lua_tostring (rdl->L, -1));
         return (NULL);
     }
     r = create_resource_ref (rdl, -1);
@@ -874,6 +874,24 @@ struct rdl * rdl_accumulator_copy (struct rdl_accumulator *a)
     free (s);
     return (rdl);
 }
+
+bool rdl_accumulator_is_empty (struct rdl_accumulator *a)
+{
+    bool ret_val = true;
+    lua_State *L = a->rdl->L;
+
+    lua_rdl_accumulator_method_push (a, "is_empty");
+
+    if (lua_pcall (L, 1, LUA_MULTRET, 0) || lua_isnoneornil (L, 1)) {
+        VERR (a->rdl->rl, "accumulator_is_empty: %s\n", lua_tostring (L, -1));
+    } else {
+      ret_val = lua_toboolean(L, -1);
+    }
+ 
+    lua_settop (L, 0);
+    return ret_val;
+}
+
 
 /*
  * vi: ts=4 sw=4 expandtab

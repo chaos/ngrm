@@ -685,6 +685,10 @@ function ResourceAccumulator:add (id)
     return true
 end
 
+function ResourceAccumulator:is_empty ()
+   return table_empty(self.dst.__resources)
+end
+
 --
 -- Return true if any k,v pairs in t2 match a k,v pair in t1
 --
